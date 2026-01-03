@@ -1,0 +1,55 @@
+# --- Rust / Cargo ---
+/target/
+**/target/
+# Cargo.lock is committed for the workspace's binaries (tessera-cli, tessera-server);
+# if a published library crate is split out later, ignore its own lock instead.
+*.pdb
+
+#docs
+/docs/**/*.md
+
+# --- WASM build output ---
+/crates/tessera-wasm/pkg/
+/crates/tessera-wasm/target/
+*.wasm
+
+# --- Web frontend (TypeScript / WebGPU UI) ---
+web/node_modules/
+web/dist/
+web/.vite/
+web/coverage/
+*.tsbuildinfo
+
+# --- FFI / native build artifacts (DSENT, ORION, HotSpot, McPAT) ---
+/crates/tessera-ffi/**/build/
+/crates/tessera-ffi/**/*.o
+/crates/tessera-ffi/**/*.a
+/crates/tessera-ffi/**/*.so
+/crates/tessera-ffi/**/*.dylib
+/crates/tessera-ffi/**/*.dll
+
+# --- Simulation output (traces, snapshots, exported figures) ---
+/runs/
+/traces/
+*.parquet
+*.arrow
+*.duckdb
+
+# --- Editors / IDE ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Local env / secrets ---
+.env
+.env.local
+
+# --- Logs ---
+*.log
