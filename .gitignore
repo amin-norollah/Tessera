@@ -6,7 +6,8 @@
 *.pdb
 
 #docs
-/docs/**/*.md
+# /docs/**/*.md
+*.md
 
 # --- WASM build output ---
 /crates/tessera-wasm/pkg/
