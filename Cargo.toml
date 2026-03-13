@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.97"
+repository = "https://github.com/tessera-noc/tessera"
+
+[workspace.dependencies]
+tessera-core = { path = "crates/tessera-core" }
+tessera-model = { path = "crates/tessera-model" }
+tessera-routing = { path = "crates/tessera-routing" }
+tessera-traffic = { path = "crates/tessera-traffic" }
+tessera-stats = { path = "crates/tessera-stats" }
