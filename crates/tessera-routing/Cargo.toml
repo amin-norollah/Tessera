@@ -1,0 +1,10 @@
+[package]
+name = "tessera-routing"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Tessera routing and selection algorithms (Phase 0: dimension-order XY)."
+
+[dependencies]
+tessera-core.workspace = true
