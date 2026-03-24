@@ -1,0 +1,10 @@
+[package]
+name = "tessera-traffic"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Tessera traffic generators (Phase 0: uniform random with Bernoulli injection)."
+
+[dependencies]
+tessera-core.workspace = true
