@@ -1,0 +1,15 @@
+# Build output
+target/
+dist/
+node_modules/
+crates/tessera-wasm/pkg/
+
+# Generated / lock files
+package-lock.json
+Cargo.lock
+
+# Binary-ish
+*.wasm
+*.pdf
+*.md
+*.docx

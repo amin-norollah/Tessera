@@ -9,6 +9,9 @@
 # /docs/**/*.md
 *.md
 
+# --- Node tooling (Prettier / Husky / lint-staged) ---
+/node_modules/
+
 # --- WASM build output ---
 /crates/tessera-wasm/pkg/
 /crates/tessera-wasm/target/
@@ -54,3 +57,6 @@ desktop.ini
 
 # --- Logs ---
 *.log
+
+# --- Test files ---
+/test*.*

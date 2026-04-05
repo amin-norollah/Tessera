@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repo; keeps Prettier's endOfLine and
+# cross-platform (Windows/Linux) checkouts consistent.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.wasm binary

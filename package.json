@@ -1,0 +1,21 @@
+{
+  "name": "tessera",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Tooling (formatting + git hooks) for the Tessera NoC simulator. The Rust engine lives in ./crates; the Angular front-end (Phase 5) will live in ./web.",
+  "license": "MIT OR Apache-2.0",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,ts,tsx,html,css,scss,json,jsonc,yml,yaml,md}": "prettier --write",
+    "*.rs": "rustfmt --edition 2021"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.9.5"
+  }
+}
