@@ -8,8 +8,43 @@ run, and keeps the power/area/thermal modeling that made PAT-Noxim useful for
 research; without the SystemC baggage (single-threaded kernel, global state,
 compile-time-fixed sizes, no snapshot/replay).
 
-**Status: design phase.** No engine code yet. The design is written up first, in
-detail, so implementation can move fast once it starts.
+**Status: Phase 0 (core prototype).** The Rust engine spine runs: a deterministic,
+double-buffered BSP kernel on a 2D mesh with XY routing, single-VC credit flow
+control, uniform traffic, and a headless latency-throughput runner. The Angular
+front-end is scaffolded in [`web/`](web/) but not yet built out.
+
+## Build, run, test
+
+Prerequisites: [Rust](https://rustup.rs/) (stable toolchain) and
+[Node.js](https://nodejs.org/) (LTS). This repo is one npm workspace, so a single
+`npm install` at the root installs all front-end and tooling dependencies (there is
+no per-package `node_modules`).
+
+```sh
+npm install              # once: tooling + web deps (hoisted to the root)
+
+# Rust engine (Phase 0 simulator)
+npm run sim:build        # compile the workspace
+npm run sim:test         # run the test suite (incl. the Phase 0 gate checks)
+npm run sim:run -- --rate 0.1 --width 8 --height 8      # one operating point
+npm run sim:sweep        # 8x8 latency-throughput sweep -> curve.csv
+npm run sim:run -- --help                                # all options
+
+# Angular front-end
+npm run web:start        # dev server at http://localhost:4200
+npm run web:build        # production bundle -> web/dist/
+
+# Quality gate (formatting + clippy + tests)
+npm run verify
+```
+
+The simulator prints a table and, with `--out`, writes a CSV with columns
+`offered_pkt_rate, offered_flit_rate, accepted_flit_rate, avg_packet_latency,
+injected_packets, ejected_packets`. Commits are auto-formatted by a Husky +
+lint-staged pre-commit hook (Prettier for web/config, `rustfmt` for Rust).
+
+The `sim:*` scripts call `cargo`, so `~/.cargo/bin` must be on your PATH (rustup
+sets this up by default).
 
 ## Docs
 
