@@ -17,9 +17,10 @@
 /crates/tessera-wasm/target/
 *.wasm
 
-# --- Web frontend (TypeScript / WebGPU UI) ---
+# --- Web frontend (Angular / WebGPU UI) ---
 web/node_modules/
 web/dist/
+web/.angular/
 web/.vite/
 web/coverage/
 *.tsbuildinfo

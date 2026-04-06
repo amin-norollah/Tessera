@@ -2,11 +2,17 @@
   "name": "tessera",
   "version": "0.0.0",
   "private": true,
-  "description": "Tooling (formatting + git hooks) for the Tessera NoC simulator. The Rust engine lives in ./crates; the Angular front-end (Phase 5) will live in ./web.",
+  "description": "Workspace root for the Tessera NoC simulator: shared tooling (Prettier + Husky), the Rust engine in ./crates, and the Angular front-end in ./web.",
   "license": "MIT OR Apache-2.0",
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "web:start": "npm run start --workspace web",
+    "web:build": "npm run build --workspace web",
+    "web:test": "npm run test --workspace web",
     "prepare": "husky"
   },
   "lint-staged": {
