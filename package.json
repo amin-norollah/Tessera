@@ -17,7 +17,7 @@
     "sim:fmt": "cargo fmt --all",
     "sim:fmt:check": "cargo fmt --all --check",
     "sim:run": "cargo run --release -p tessera-cli --",
-    "sim:sweep": "cargo run --release -p tessera-cli -- --width 8 --height 8 --out curve.csv",
+    "sim:sweep": "cargo run --release -p tessera-cli -- --width 8 --height 8 --out results/curve.csv",
     "web:start": "npm run start --workspace web",
     "web:build": "npm run build --workspace web",
     "web:test": "npm run test --workspace web",

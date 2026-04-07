@@ -46,6 +46,27 @@ lint-staged pre-commit hook (Prettier for web/config, `rustfmt` for Rust).
 The `sim:*` scripts call `cargo`, so `~/.cargo/bin` must be on your PATH (rustup
 sets this up by default).
 
+## Reading the results
+
+### Sweep
+
+A sweep produces the classic latency-throughput ("hockey-stick") curve. As you
+raise the offered load you should expect three regimes:
+
+- **Below saturation:** `accepted_flit_rate` tracks `offered_flit_rate` and latency
+  stays low and roughly flat; the network keeps up with everything injected.
+- **The knee:** accepted load stops matching offered and latency turns sharply
+  upward; this is the saturation point.
+- **Past saturation:** accepted load flatlines at the network's capacity (~0.29
+  flits/node/cycle for the default 8x8 mesh) while latency grows without bound.
+
+Why: throughput saturates because uniform traffic is limited by the mesh
+**bisection** (the central links every crossing packet shares), and latency
+diverges because injection is open-loop, so surplus load piles up in the source
+queues. Zero-load latency (the curve's left edge) is just the average hop count
+times the per-hop cost. A correct run also shows `injected_packets ==
+ejected_packets` on every row (no flit loss; the network fully drains).
+
 ## Docs
 
 Everything lives in [`docs/`](docs/); start there:

@@ -61,3 +61,6 @@ desktop.ini
 
 # --- Test files ---
 /test*.*
+
+# --- Results files ---
+/results/*.*
