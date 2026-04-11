@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tessera_cli::{run_point, RunParams};
+use tessera_cli::{run_point, RoutingKind, RunParams};
 use tessera_core::SimConfig;
 use tessera_stats::{write_csv, RunPoint};
 
@@ -19,10 +19,12 @@ TOPOLOGY / ROUTER:
     --width N            mesh width            [default: 8]
     --height N           mesh height           [default: 8]
     --buffer N           buffer depth (flits)  [default: 4]
+    --vcs N              virtual channels/port [default: 1]
     --packet-size N      flits per packet      [default: 4]
     --router-latency N   cycles per router     [default: 1]
     --link-latency N     cycles per link       [default: 1]
     --credit-delay N     credit return delay   [default: 1]
+    --routing NAME       xy | xyz | west-first | north-last | negative-first  [default: xy]
     --seed N             master RNG seed       [default: 1]
 
 WORKLOAD / HARNESS:
@@ -118,16 +120,22 @@ fn parse(args: &[String]) -> Result<Opts, String> {
 
     let cfg = SimConfig {
         buffer_depth: get(&map, "buffer", 4)?,
+        num_vcs: get(&map, "vcs", 1)?,
         router_latency: get(&map, "router-latency", 1)?,
         link_latency: get(&map, "link-latency", 1)?,
         credit_delay: get(&map, "credit-delay", 1)?,
         packet_size: get(&map, "packet-size", 4)?,
         seed: get(&map, "seed", 1)?,
     };
+    let routing = match map.get("routing") {
+        Some(v) => RoutingKind::parse(v).ok_or_else(|| format!("unknown routing '{v}'"))?,
+        None => RoutingKind::Xy,
+    };
     let params = RunParams {
         width: get(&map, "width", 8)?,
         height: get(&map, "height", 8)?,
         cfg,
+        routing,
         warmup: get(&map, "warmup", 2000)?,
         measure: get(&map, "measure", 10000)?,
         drain_cap: get(&map, "drain-cap", 200_000)?,

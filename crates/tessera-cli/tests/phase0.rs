@@ -35,6 +35,7 @@ fn zero_load_latency_matches_pipeline_formula() {
     let hops = 3u64; // node 0 (0,0) -> node 3 (3,0) on a 4-wide mesh
     let cfg = SimConfig {
         buffer_depth: 8,
+        num_vcs: 1,
         router_latency: rl,
         link_latency: ll,
         credit_delay: 1,
@@ -71,12 +72,14 @@ fn params(seed: u64) -> RunParams {
         height: 6,
         cfg: SimConfig {
             buffer_depth: 4,
+            num_vcs: 1,
             router_latency: 1,
             link_latency: 1,
             credit_delay: 1,
             packet_size: 4,
             seed,
         },
+        routing: tessera_cli::RoutingKind::Xy,
         warmup: 500,
         measure: 3000,
         drain_cap: 100_000,

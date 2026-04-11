@@ -17,7 +17,7 @@ pub use buffer::BufferPool;
 pub use flit::{FlitArena, FlitHeader, FlitKind};
 pub use ids::{Coord, FlitId, LinkId, PacketId, PeId, PortId, RouterId, VcId};
 pub use rng::{NodeRng, RngStreams};
-pub use sim::{Metrics, SimConfig, Simulation};
+pub use sim::{Metrics, SimConfig, Simulation, VcState};
 pub use traits::{
     Candidates, PacketDesc, PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology,
     TrafficGenerator,

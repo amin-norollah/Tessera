@@ -29,6 +29,7 @@ name = "tessera-routing"
 version = "0.0.0"
 dependencies = [
  "tessera-core",
+ "tessera-model",
 ]
 
 [[package]]

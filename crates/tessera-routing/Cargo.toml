@@ -8,3 +8,6 @@ description = "Tessera routing and selection algorithms (Phase 0: dimension-orde
 
 [dependencies]
 tessera-core.workspace = true
+
+[dev-dependencies]
+tessera-model.workspace = true
