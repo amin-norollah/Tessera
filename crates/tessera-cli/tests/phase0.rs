@@ -79,7 +79,7 @@ fn params(seed: u64) -> RunParams {
             packet_size: 4,
             seed,
         },
-        routing: tessera_cli::RoutingKind::Xy,
+        routing: "xy".to_string(),
         warmup: 500,
         measure: 3000,
         drain_cap: 100_000,

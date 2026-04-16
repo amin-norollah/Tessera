@@ -3,10 +3,10 @@
 //! fully drain. A deadlocked or stranding routing function would leave flits
 //! in flight past the drain cap and fail here (P1-F9, G1.4).
 
-use tessera_cli::{build_sim_with, RoutingKind};
+use tessera_cli::build_sim_named;
 use tessera_core::SimConfig;
 
-fn drains_cleanly(kind: RoutingKind) {
+fn drains_cleanly(routing: &str) {
     let cfg = SimConfig {
         buffer_depth: 4,
         num_vcs: 1,
@@ -16,7 +16,7 @@ fn drains_cleanly(kind: RoutingKind) {
         packet_size: 4,
         seed: 9,
     };
-    let mut sim = build_sim_with(8, 8, cfg, 0.08, kind.build());
+    let mut sim = build_sim_named(8, 8, cfg, 0.08, routing);
     sim.set_injecting(true);
     for _ in 0..4000 {
         sim.tick();
@@ -30,27 +30,21 @@ fn drains_cleanly(kind: RoutingKind) {
     assert_eq!(
         sim.in_flight(),
         0,
-        "{kind:?} did not drain (possible deadlock)"
+        "{routing} did not drain (possible deadlock)"
     );
     assert_eq!(
         sim.metrics.injected_packets, sim.metrics.ejected_packets,
-        "{kind:?} lost packets"
+        "{routing} lost packets"
     );
     assert!(
         sim.metrics.ejected_packets > 0,
-        "{kind:?} delivered nothing"
+        "{routing} delivered nothing"
     );
 }
 
 #[test]
 fn every_router_delivers_and_drains() {
-    for kind in [
-        RoutingKind::Xy,
-        RoutingKind::Xyz,
-        RoutingKind::WestFirst,
-        RoutingKind::NorthLast,
-        RoutingKind::NegativeFirst,
-    ] {
-        drains_cleanly(kind);
+    for routing in ["xy", "xyz", "west-first", "north-last", "negative-first"] {
+        drains_cleanly(routing);
     }
 }

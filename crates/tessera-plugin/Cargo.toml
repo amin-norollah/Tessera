@@ -1,0 +1,26 @@
+[package]
+name = "tessera-plugin"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Tessera plugin API: the component registry, conformance harness, and versioning (native plugins in Phase 2; WASM host to follow)."
+
+[dependencies]
+tessera-core.workspace = true
+tessera-routing.workspace = true
+tessera-traffic.workspace = true
+wasmtime = { version = "46", default-features = false, features = [
+    "cranelift",
+    "runtime",
+    "std",
+    "wat",
+], optional = true }
+
+[features]
+# Opt-in sandboxed WebAssembly plugin host. Off by default so the standard
+# build stays lean (wasmtime + Cranelift is a heavy dependency).
+wasm = ["dep:wasmtime"]
+
+[dev-dependencies]
+tessera-model.workspace = true

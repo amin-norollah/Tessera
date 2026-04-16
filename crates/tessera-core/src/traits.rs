@@ -2,8 +2,14 @@
 //!
 //! These live in `tessera-core` so the [`crate::sim::Simulation`] can hold them
 //! as trait objects while concrete implementations live in the higher crates
-//! (`tessera-model`, `tessera-routing`, `tessera-traffic`). The signatures are
-//! indicative for Phase 0; the plugin API is only frozen in Phase 2.
+//! (`tessera-model`, `tessera-routing`, `tessera-traffic`).
+//!
+//! **Plugin API v1 (frozen at Phase 2, `tessera_plugin::PLUGIN_API_VERSION`):**
+//! [`RoutingAlgorithm`], [`SelectionPolicy`], and [`TrafficGenerator`] are
+//! frozen — additive changes only within the 1.x line. Each documents the
+//! invariants a conforming implementation must uphold (see
+//! `tessera_plugin::conformance`). The `Allocator` and `StatisticsCollector`
+//! contracts join the freeze once their engine implementations land.
 
 use crate::ids::{Coord, PortId, RouterId};
 use crate::rng::NodeRng;

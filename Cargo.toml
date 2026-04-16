@@ -14,3 +14,4 @@ tessera-model = { path = "crates/tessera-model" }
 tessera-routing = { path = "crates/tessera-routing" }
 tessera-traffic = { path = "crates/tessera-traffic" }
 tessera-stats = { path = "crates/tessera-stats" }
+tessera-plugin = { path = "crates/tessera-plugin" }

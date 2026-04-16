@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 
-use tessera_cli::{build_sim, run_point, RoutingKind, RunParams};
+use tessera_cli::{build_sim, run_point, RunParams};
 use tessera_core::{
     PacketDesc, PortId, RouterId, SimConfig, Simulation, TrafficGenerator, VcId, VcState,
 };
@@ -24,7 +24,7 @@ fn params(vcs: u8, seed: u64) -> RunParams {
             packet_size: 4,
             seed,
         },
-        routing: RoutingKind::Xy,
+        routing: "xy".to_string(),
         warmup: 1000,
         measure: 6000,
         drain_cap: 200_000,

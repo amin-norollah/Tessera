@@ -20,3 +20,4 @@ tessera-model.workspace = true
 tessera-routing.workspace = true
 tessera-traffic.workspace = true
 tessera-stats.workspace = true
+tessera-plugin.workspace = true

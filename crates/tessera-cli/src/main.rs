@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tessera_cli::{run_point, RoutingKind, RunParams};
+use tessera_cli::{run_point, RunParams};
 use tessera_core::SimConfig;
+use tessera_plugin::builtin_registry;
 use tessera_stats::{write_csv, RunPoint};
 
 const USAGE: &str = "\
@@ -127,10 +128,16 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         packet_size: get(&map, "packet-size", 4)?,
         seed: get(&map, "seed", 1)?,
     };
-    let routing = match map.get("routing") {
-        Some(v) => RoutingKind::parse(v).ok_or_else(|| format!("unknown routing '{v}'"))?,
-        None => RoutingKind::Xy,
-    };
+    let routing = map
+        .get("routing")
+        .cloned()
+        .unwrap_or_else(|| "xy".to_string());
+    if !builtin_registry().has_routing(&routing) {
+        return Err(format!(
+            "unknown routing '{routing}' (known: {})",
+            builtin_registry().routing_names().join(", ")
+        ));
+    }
     let params = RunParams {
         width: get(&map, "width", 8)?,
         height: get(&map, "height", 8)?,
