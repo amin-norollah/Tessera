@@ -14,4 +14,8 @@ tessera-model = { path = "crates/tessera-model" }
 tessera-routing = { path = "crates/tessera-routing" }
 tessera-traffic = { path = "crates/tessera-traffic" }
 tessera-stats = { path = "crates/tessera-stats" }
+tessera-config = { path = "crates/tessera-config" }
 tessera-plugin = { path = "crates/tessera-plugin" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "1"
