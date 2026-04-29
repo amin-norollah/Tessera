@@ -47,6 +47,11 @@ pub struct FlitHeader {
     /// Earliest cycle this flit may leave its current buffer, i.e. arrival +
     /// router latency. Models the per-hop router pipeline delay.
     pub eligible_cycle: u64,
+    /// Set once this packet has crossed a torus dateline link
+    /// ([`Topology::is_dateline`](crate::traits::Topology::is_dateline));
+    /// from then on VC allocation restricts it to the upper VC half, the
+    /// standard 2-VC dateline deadlock-avoidance scheme (P1-F12).
+    pub dateline_crossed: bool,
 }
 
 /// Pooled flit storage. Ids are recycled via the free list; no per-flit heap

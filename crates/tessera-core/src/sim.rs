@@ -22,7 +22,8 @@ use crate::flit::{FlitArena, FlitHeader, FlitKind};
 use crate::ids::{FlitId, PacketId, PortId, RouterId, VcId};
 use crate::rng::{NodeRng, RngStreams};
 use crate::traits::{
-    PacketDesc, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
+    AllocRequest, Allocator, CongestionView, GrantSet, PacketDesc, RouteCtx, RoutingAlgorithm,
+    SelectionPolicy, Topology, TrafficGenerator,
 };
 
 /// The VC a packet is injected on at the local port. Injection uses a single
@@ -31,6 +32,28 @@ const INJECT_VC: u8 = 0;
 const NONE: i16 = -1;
 const FREE: i32 = -1;
 const INFINITE_CREDIT: u16 = u16::MAX;
+
+/// A [`CongestionView`] over one router's live credit state, borrowing only
+/// the `credits` field (not all of `Simulation`) so callers can still hold
+/// other fields mutably at the same time.
+struct RouterCongestion<'a> {
+    credits: &'a [u16],
+    /// Offset of `(router, port=0, vc=0)` into `credits`.
+    base: usize,
+    vcs: u8,
+}
+
+impl CongestionView for RouterCongestion<'_> {
+    fn free_slots(&self, port: PortId) -> u16 {
+        let start = self.base + port.0 as usize * self.vcs as usize;
+        // Saturating, not summing: the local port's per-VC credit is
+        // `INFINITE_CREDIT` (`u16::MAX`), so a plain sum over >=2 VCs
+        // overflows `u16`.
+        self.credits[start..start + self.vcs as usize]
+            .iter()
+            .fold(0u16, |acc, &c| acc.saturating_add(c))
+    }
+}
 
 /// Structural parameters of a run. All values are runtime, never compile-time.
 #[derive(Clone, Copy, Debug)]
@@ -110,6 +133,9 @@ pub struct Simulation {
     topo: Box<dyn Topology>,
     routing: Box<dyn RoutingAlgorithm>,
     selection: Box<dyn SelectionPolicy>,
+    va_alloc: Box<dyn Allocator>,
+    sa1_alloc: Box<dyn Allocator>,
+    sa2_alloc: Box<dyn Allocator>,
     traffic: Box<dyn TrafficGenerator>,
 
     ports: u8,
@@ -143,27 +169,41 @@ pub struct Simulation {
 
     pe_src: Vec<VecDeque<u32>>,
     pe_rng: Vec<NodeRng>,
+    /// Per-router RNG stream for selection-policy tie-breaks (P1-F18: draws
+    /// stay per-node, never a shared/global generator).
+    router_rng: Vec<NodeRng>,
 
     // Per-tick scratch, retained to avoid per-cycle allocation.
-    /// SA phase 1: the VC chosen to represent each input port this cycle, or NONE.
-    sel_vc: Vec<i16>,
-    /// SA phase 2: winning input port per output port, or NONE.
-    grant_ip: Vec<i16>,
-    /// SA phase 2: winning input VC per output port.
-    grant_ivc: Vec<i16>,
-    /// Round-robin pointer over VCs, per input port (SA phase 1).
-    rr_vc: Vec<u8>,
-    /// Round-robin pointer over input ports, per output port (SA phase 2).
-    rr_port: Vec<u8>,
     gen_scratch: Vec<PacketDesc>,
+
+    /// Bids for a free output VC on the requester's already-committed port
+    /// (VA); requester/resource ids are [`Simulation::civ`] values.
+    va_reqs: Vec<AllocRequest>,
+    va_grants: GrantSet,
+    /// Bids for a port's own "which VC goes next" slot (SA phase 1);
+    /// requester ids are `civ` values, resource ids are [`Simulation::rp`]
+    /// values.
+    sa1_reqs: Vec<AllocRequest>,
+    sa1_grants: GrantSet,
+    /// SA phase 1's winning input VC per input port (`rp(r, ip)`-indexed), or
+    /// NONE; feeds phase 2's requests and the crossbar traversal.
+    phase1_winner_vc: Vec<i16>,
+    /// Bids for an output port (SA phase 2); requester/resource ids are `rp`
+    /// values.
+    sa2_reqs: Vec<AllocRequest>,
+    sa2_grants: GrantSet,
 }
 
 impl Simulation {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         cfg: SimConfig,
         topo: Box<dyn Topology>,
         routing: Box<dyn RoutingAlgorithm>,
         selection: Box<dyn SelectionPolicy>,
+        va_alloc: Box<dyn Allocator>,
+        sa1_alloc: Box<dyn Allocator>,
+        sa2_alloc: Box<dyn Allocator>,
         traffic: Box<dyn TrafficGenerator>,
     ) -> Self {
         let n = topo.num_routers();
@@ -175,6 +215,7 @@ impl Simulation {
 
         let streams = RngStreams::new(cfg.seed);
         let pe_rng = (0..n).map(|node| streams.pe(node)).collect();
+        let router_rng = (0..n).map(|node| streams.router(node)).collect();
 
         let mut credits = vec![0u16; per_vc];
         for r in 0..n {
@@ -214,15 +255,21 @@ impl Simulation {
             credit_returns: Vec::new(),
             pe_src: (0..n).map(|_| VecDeque::new()).collect(),
             pe_rng,
-            sel_vc: vec![NONE; per_port],
-            grant_ip: vec![NONE; per_port],
-            grant_ivc: vec![NONE; per_port],
-            rr_vc: vec![0; per_port],
-            rr_port: vec![0; per_port],
+            router_rng,
             gen_scratch: Vec::new(),
+            va_reqs: Vec::new(),
+            va_grants: GrantSet::new(),
+            sa1_reqs: Vec::new(),
+            sa1_grants: GrantSet::new(),
+            phase1_winner_vc: vec![NONE; per_port],
+            sa2_reqs: Vec::new(),
+            sa2_grants: GrantSet::new(),
             topo,
             routing,
             selection,
+            va_alloc,
+            sa1_alloc,
+            sa2_alloc,
             traffic,
         }
     }
@@ -233,6 +280,66 @@ impl Simulation {
 
     pub fn num_vcs(&self) -> u8 {
         self.vcs
+    }
+
+    /// Debug/diagnostic only: the committed output `(port, vc)` for an input
+    /// VC that has passed RC (and VA, if allocated), or `None` for either
+    /// slot not yet committed.
+    pub fn debug_reservation(
+        &self,
+        r: RouterId,
+        p: PortId,
+        v: VcId,
+    ) -> (Option<PortId>, Option<VcId>) {
+        let idx = self.civ(r.0, p.0, v.0);
+        let port = (self.reserve_port[idx] != NONE).then(|| PortId(self.reserve_port[idx] as u8));
+        let vc = (self.reserve_vc[idx] != NONE).then(|| VcId(self.reserve_vc[idx] as u8));
+        (port, vc)
+    }
+
+    /// Debug/diagnostic only: credit conservation. For every real (non-local)
+    /// lane, `credits + buffered-at-neighbor + in-flight-on-the-link +
+    /// pending-credit-returns` must equal `buffer_depth` — free slots,
+    /// occupied slots, slots in transit, and slots already freed but whose
+    /// credit hasn't completed its `credit_delay` return trip yet, account
+    /// for the lane's entire capacity, with none leaked or double-counted by
+    /// the VA/SA/ST/credit-return chain.
+    pub fn debug_invariants(&self) -> Result<(), String> {
+        let n = self.topo.num_routers();
+        for r in 0..n {
+            for p in 0..self.ports {
+                if p == self.local_port {
+                    continue;
+                }
+                let Some((neighbor, n_port)) = self.topo.adjacent(RouterId(r), PortId(p)) else {
+                    continue;
+                };
+                for v in 0..self.vcs {
+                    let credits = self.credits[self.civ(r, p, v)];
+                    let buffered = self.buffers.len(neighbor.0, n_port.0, v);
+                    let in_flight = self.links[self.rp(r, p)]
+                        .iter()
+                        .filter(|&&(flit, _)| self.arena.get(FlitId(flit)).vc.0 == v)
+                        .count() as u16;
+                    let pending_returns = self
+                        .credit_returns
+                        .iter()
+                        .filter(|&&(rr, pp, vv, _)| rr == r && pp == p && vv == v)
+                        .count() as u16;
+                    let total = credits + buffered + in_flight + pending_returns;
+                    if total != self.cfg.buffer_depth {
+                        return Err(format!(
+                            "credit conservation violated at router {r} port {p} vc {v}: \
+                             credits={credits} buffered(neighbor)={buffered} \
+                             in_flight={in_flight} pending_returns={pending_returns} \
+                             total={total} != depth={}",
+                            self.cfg.buffer_depth
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn set_injecting(&mut self, on: bool) {
@@ -385,6 +492,7 @@ impl Simulation {
                 hops: 0,
                 inject_cycle: cycle,
                 eligible_cycle: 0,
+                dateline_crossed: false,
             };
             let flit = self.arena.alloc(header);
             self.pe_src[r as usize].push_back(flit.0);
@@ -413,21 +521,39 @@ impl Simulation {
                     let ctx = RouteCtx {
                         here: RouterId(r),
                         dst: header.dst,
+                        src: header.src,
                         in_port: PortId(ip),
                         topo: &*self.topo,
                     };
                     let cands = self.routing.route(&ctx);
-                    self.reserve_port[idx] = self.selection.select(&cands).0 as i16;
+                    let congestion = RouterCongestion {
+                        credits: &self.credits,
+                        base: self.civ(r, 0, 0),
+                        vcs: self.vcs,
+                    };
+                    let port = self.selection.select(
+                        &cands,
+                        &congestion,
+                        &mut self.router_rng[r as usize],
+                    );
+                    self.reserve_port[idx] = port.0 as i16;
                 }
             }
         }
     }
 
-    /// VA: a head with a committed port but no output VC acquires a free output
-    /// VC on that port. The VC is held from head to tail.
+    /// VA: a head with a committed port but no output VC bids for every
+    /// currently-free output VC on that port; the injected [`Allocator`]
+    /// breaks contention (at most one winning requester per output VC, at
+    /// most one output VC per requester). The won VC is held from head to
+    /// tail.
     fn stage_vc_alloc(&mut self) {
         let cycle = self.cycle;
         let n = self.topo.num_routers();
+        let vcs = self.vcs as usize;
+        let space = n as usize * self.ports as usize * vcs;
+
+        self.va_reqs.clear();
         for r in 0..n {
             for ip in 0..self.ports {
                 for ivc in 0..self.vcs {
@@ -439,70 +565,109 @@ impl Simulation {
                     let Some(flit) = self.buffers.front(r, ip, ivc) else {
                         continue;
                     };
-                    if self.arena.get(flit).eligible_cycle > cycle {
+                    let header = self.arena.get(flit);
+                    if header.eligible_cycle > cycle {
                         continue;
                     }
                     let op = op as u8;
-                    let holder = ip as i32 * self.vcs as i32 + ivc as i32;
-                    for ovc in 0..self.vcs {
+                    let requester = idx as u32;
+                    // A packet that has crossed a torus dateline is confined
+                    // to the upper VC half from here on (P1-F12); a mesh
+                    // flit never sets `dateline_crossed`, so this is a no-op
+                    // there.
+                    let vc_start = if header.dateline_crossed {
+                        self.vcs / 2
+                    } else {
+                        0
+                    };
+                    for ovc in vc_start..self.vcs {
                         let out = self.civ(r, op, ovc);
                         if self.hold[out] == FREE {
-                            self.hold[out] = holder;
-                            self.reserve_vc[idx] = ovc as i16;
-                            break;
+                            self.va_reqs.push(AllocRequest {
+                                requester,
+                                resource: out as u32,
+                            });
                         }
                     }
                 }
             }
         }
+
+        self.va_grants.reset(space, space);
+        self.va_alloc.allocate(&self.va_reqs, &mut self.va_grants);
+
+        for r in 0..n {
+            for ip in 0..self.ports {
+                for ivc in 0..self.vcs {
+                    let idx = self.civ(r, ip, ivc);
+                    if self.reserve_port[idx] == NONE || self.reserve_vc[idx] != NONE {
+                        continue;
+                    }
+                    let Some(resource) = self.va_grants.requester_grant(idx as u32) else {
+                        continue;
+                    };
+                    let ovc = (resource as usize % vcs) as u8;
+                    let op = self.reserve_port[idx] as u8;
+                    let holder = ip as i32 * self.vcs as i32 + ivc as i32;
+                    let out = self.civ(r, op, ovc);
+                    self.hold[out] = holder;
+                    self.reserve_vc[idx] = ovc as i16;
+                }
+            }
+        }
     }
 
-    /// SA: two-phase separable allocation. Phase 1 picks one ready VC per input
-    /// port (VC arbitration); phase 2 picks one input port per output port (port
-    /// arbitration). This enforces at most one flit per input and per output
-    /// port per cycle.
+    /// SA: two-phase separable allocation via the injected [`Allocator`]s.
+    /// Phase 1 picks one ready VC per input port (one resource per input
+    /// port, requesters are that port's own ready VCs); phase 2 picks one
+    /// input port per output port. This enforces at most one flit per input
+    /// and per output port per cycle.
     fn stage_switch_alloc(&mut self) {
         let n = self.topo.num_routers();
         let ports = self.ports as usize;
         let vcs = self.vcs as usize;
+        let port_space = n as usize * ports;
+        let vc_space = port_space * vcs;
 
+        self.sa1_reqs.clear();
         for r in 0..n {
-            // Phase 1: per input port, round-robin over its VCs for one ready to send.
             for ip in 0..self.ports {
-                let slot = self.rp(r, ip);
-                self.sel_vc[slot] = NONE;
-                let start = self.rr_vc[slot] as usize;
-                for k in 0..vcs {
-                    let ivc = ((start + k) % vcs) as u8;
+                for ivc in 0..self.vcs {
                     if self.input_vc_ready(r, ip, ivc) {
-                        self.sel_vc[slot] = ivc as i16;
-                        self.rr_vc[slot] = ((ivc as usize + 1) % vcs) as u8;
-                        break;
-                    }
-                }
-            }
-            // Phase 2: per output port, round-robin over input ports requesting it.
-            for op in 0..self.ports {
-                let out_slot = self.rp(r, op);
-                self.grant_ip[out_slot] = NONE;
-                self.grant_ivc[out_slot] = NONE;
-                let start = self.rr_port[out_slot] as usize;
-                for k in 0..ports {
-                    let ip = ((start + k) % ports) as u8;
-                    let in_slot = self.rp(r, ip);
-                    let ivc = self.sel_vc[in_slot];
-                    if ivc == NONE {
-                        continue;
-                    }
-                    if self.reserve_port[self.civ(r, ip, ivc as u8)] == op as i16 {
-                        self.grant_ip[out_slot] = ip as i16;
-                        self.grant_ivc[out_slot] = ivc;
-                        self.rr_port[out_slot] = ((ip as usize + 1) % ports) as u8;
-                        break;
+                        self.sa1_reqs.push(AllocRequest {
+                            requester: self.civ(r, ip, ivc) as u32,
+                            resource: self.rp(r, ip) as u32,
+                        });
                     }
                 }
             }
         }
+        self.sa1_grants.reset(vc_space, port_space);
+        self.sa1_alloc
+            .allocate(&self.sa1_reqs, &mut self.sa1_grants);
+
+        for w in &mut self.phase1_winner_vc {
+            *w = NONE;
+        }
+        self.sa2_reqs.clear();
+        for r in 0..n {
+            for ip in 0..self.ports {
+                let slot = self.rp(r, ip);
+                let Some(winner) = self.sa1_grants.resource_winner(slot as u32) else {
+                    continue;
+                };
+                let ivc = (winner as usize % vcs) as u8;
+                self.phase1_winner_vc[slot] = ivc as i16;
+                let op = self.reserve_port[self.civ(r, ip, ivc)] as u8;
+                self.sa2_reqs.push(AllocRequest {
+                    requester: slot as u32,
+                    resource: self.rp(r, op) as u32,
+                });
+            }
+        }
+        self.sa2_grants.reset(port_space, port_space);
+        self.sa2_alloc
+            .allocate(&self.sa2_reqs, &mut self.sa2_grants);
     }
 
     /// A ready-to-send input VC: active (port+VC committed), its head flit is
@@ -533,11 +698,12 @@ impl Simulation {
         for r in 0..n {
             for op in 0..self.ports {
                 let out_slot = self.rp(r, op);
-                let ip = self.grant_ip[out_slot];
-                if ip == NONE {
+                let Some(winner) = self.sa2_grants.resource_winner(out_slot as u32) else {
                     continue;
-                }
-                let (ip, ivc) = (ip as u8, self.grant_ivc[out_slot] as u8);
+                };
+                let ip = (winner as usize - r as usize * self.ports as usize) as u8;
+                let in_slot = self.rp(r, ip);
+                let ivc = self.phase1_winner_vc[in_slot] as u8;
                 let Some(flit) = self.buffers.front(r, ip, ivc) else {
                     continue;
                 };
@@ -552,10 +718,14 @@ impl Simulation {
                 let out_idx = self.civ(r, op, ovc);
                 self.buffers.pop(r, ip, ivc);
                 self.credits[out_idx] -= 1;
+                let crosses_dateline = self.topo.is_dateline(RouterId(r), PortId(op));
                 let header = {
                     let h = self.arena.get_mut(flit);
                     h.hops += 1;
                     h.vc = VcId(ovc);
+                    if crosses_dateline {
+                        h.dateline_crossed = true;
+                    }
                     *h
                 };
                 self.links[out_slot].push((flit.0, cycle + link_latency));

@@ -19,6 +19,6 @@ pub use ids::{Coord, FlitId, LinkId, PacketId, PeId, PortId, RouterId, VcId};
 pub use rng::{NodeRng, RngStreams};
 pub use sim::{Metrics, SimConfig, Simulation, VcState};
 pub use traits::{
-    Candidates, PacketDesc, PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology,
-    TrafficGenerator,
+    AllocRequest, Allocator, Candidates, CongestionView, GrantSet, PacketDesc, PortLabel, RouteCtx,
+    RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
 };
