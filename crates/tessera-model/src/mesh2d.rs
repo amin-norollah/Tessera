@@ -10,7 +10,7 @@ pub const NORTH: u8 = 2;
 pub const SOUTH: u8 = 3;
 pub const LOCAL: u8 = 4;
 
-const PORTS: u8 = 5;
+pub(crate) const PORTS: u8 = 5;
 
 pub struct Mesh2D {
     width: u16,
