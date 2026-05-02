@@ -1,17 +1,23 @@
 //! Routing and selection behind the [`RoutingAlgorithm`] / [`SelectionPolicy`]
 //! contracts.
 //!
-//! Phase 1 ships the deterministic dimension-order routers (XY, XYZ) and the
+//! Phase 1 ships the deterministic dimension-order routers (XY, XYZ), the
 //! partially-adaptive turn-model family (west-first, north-last,
-//! negative-first). Each turn model returns the productive output ports
-//! permitted by its turn set; deadlock-freedom on a mesh with a single VC
-//! follows from the turn model (Glass & Ni). Odd-even (which needs a
-//! parity-aware, source-column-dependent selection) and fully-adaptive +
-//! escape-VC (Duato) routing arrive in a later increment.
+//! negative-first, odd-even), and a torus-aware dimension-order router. Each
+//! turn model returns the productive output ports permitted by its turn set;
+//! deadlock-freedom on a mesh with a single VC follows from the turn model
+//! (Glass & Ni for west-first/north-last/negative-first; Chiu for odd-even).
+//! Fully-adaptive + escape-VC (Duato) routing arrives in a later increment.
 
-use tessera_core::{
-    Candidates, Coord, PortId, PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy,
-};
+use tessera_core::{Candidates, Coord, PortId, PortLabel, RouteCtx, RoutingAlgorithm};
+
+mod alloc;
+mod selection;
+mod table;
+
+pub use alloc::{ISlip, Matrix, RoundRobin};
+pub use selection::{BufferLevel, FirstAvailable, Random, RoundRobinSelection};
+pub use table::TableRouting;
 
 fn opposite(l: PortLabel) -> PortLabel {
     match l {
@@ -94,6 +100,57 @@ impl RoutingAlgorithm for DimensionOrderXyz {
     }
 }
 
+/// Whether moving in the increasing (`+`) direction around a `size`-node ring
+/// is the shorter-or-tied path from `here` to `dst`; `None` if `here == dst`
+/// (no movement needed in this dimension).
+fn shorter_ring_plus(here: u16, dst: u16, size: u16) -> Option<bool> {
+    if here == dst {
+        return None;
+    }
+    let forward = (dst as i32 - here as i32).rem_euclid(size as i32);
+    let backward = size as i32 - forward;
+    Some(forward <= backward)
+}
+
+/// Dimension-order routing on a 2D torus: each dimension wraps through the
+/// dateline whenever that is the shorter path, exhausting X before Y. The
+/// abstract [`Topology`] trait has no notion of ring size, so — unlike the
+/// mesh routers above, which derive everything from `ctx.topo` — this needs
+/// the torus's actual width/height at construction time.
+pub struct TorusDimensionOrderXy {
+    width: u16,
+    height: u16,
+}
+
+impl TorusDimensionOrderXy {
+    pub fn new(width: u16, height: u16) -> Self {
+        Self { width, height }
+    }
+}
+
+impl RoutingAlgorithm for TorusDimensionOrderXy {
+    fn route(&self, ctx: &RouteCtx) -> Candidates {
+        let here = ctx.topo.coord(ctx.here);
+        let dst = ctx.topo.coord(ctx.dst);
+        let label = if let Some(plus) = shorter_ring_plus(here.x, dst.x, self.width) {
+            if plus {
+                PortLabel::XPlus
+            } else {
+                PortLabel::XMinus
+            }
+        } else if let Some(plus) = shorter_ring_plus(here.y, dst.y, self.height) {
+            if plus {
+                PortLabel::YPlus
+            } else {
+                PortLabel::YMinus
+            }
+        } else {
+            PortLabel::Local
+        };
+        Candidates::single(label_to_port(ctx, label))
+    }
+}
+
 #[derive(Clone, Copy)]
 enum TurnModel {
     WestFirst,
@@ -101,8 +158,8 @@ enum TurnModel {
     NegativeFirst,
 }
 
-/// Whether the turn from travel direction `from` to `to` is permitted. `from`
-/// is `None` for a freshly injected flit (no prior direction).
+/// Whether the turn from travel direction `from` to `to` is permitted.
+/// `from` is `None` for a freshly injected flit (no prior direction).
 fn turn_allowed(model: TurnModel, from: Option<PortLabel>, to: PortLabel) -> bool {
     use PortLabel::*;
     let Some(from) = from else {
@@ -151,15 +208,34 @@ fn turn_route(ctx: &RouteCtx, model: TurnModel) -> Candidates {
             c += 1;
         }
     }
-    // A connected turn model always leaves at least one legal productive move on
-    // a legal minimal path; keep progressing if a model edge case empties it.
+    // Only reachable by querying a history a real run never produces (e.g. a
+    // conformance/CDG checker probing every `(in_port, dst)` pair, including
+    // ones no legal multi-hop path leads to): the priority filter below
+    // guarantees that whenever a mandatory direction is still pending, it is
+    // taken at the *first* opportunity, so a later hop can never arrive here
+    // with that direction both mandatory and already forbidden. Fall back
+    // rather than return nothing, since `RoutingAlgorithm::route` must always
+    // return at least one port.
     if c == 0 {
-        debug_assert!(false, "turn model left no legal productive move");
         chosen[0] = dirs[0];
         c = 1;
     }
-    if c == 2 && priority(model, chosen[0]) > priority(model, chosen[1]) {
-        chosen.swap(0, 1);
+    if c == 2 {
+        if priority(model, chosen[0]) > priority(model, chosen[1]) {
+            chosen.swap(0, 1);
+        }
+        // A strict priority difference is mandatory ordering, not a
+        // preference: these turn models are safe under arbitrary selection
+        // only because the deferrable direction is never actually offered as
+        // a free choice against the must-go-now one (a selection policy that
+        // ignores priority — buffer-level, round-robin, random — would
+        // sometimes pick the deferrable candidate and strand the mandatory
+        // turn later, deadlocking). Only a genuine tie (both candidates
+        // equally preferred — e.g. west-first doesn't care which of two
+        // *unrestricted* directions comes first) is left as a real choice.
+        if priority(model, chosen[0]) < priority(model, chosen[1]) {
+            c = 1;
+        }
     }
 
     let mut cands = Candidates::new();
@@ -200,15 +276,90 @@ turn_router!(
     "Negative-first turn-model routing."
 );
 
-/// Picks the first admissible port. With deterministic routing there is exactly
-/// one candidate; with a turn model it takes the model's highest-priority legal
-/// productive port.
-pub struct FirstAvailable;
+/// Whether a router in column `here_x` may take the turn from `from` to
+/// `to`, per Chiu's odd-even rule: EN/ES turns forbidden at even columns,
+/// NW/SW turns forbidden at odd columns. Unlike [`turn_allowed`]'s models,
+/// this restriction is genuinely position-dependent (not a fixed priority),
+/// which is what [`odd_even_offer`] has to account for.
+fn odd_even_turn_allowed(here_x: u16, from: Option<PortLabel>, to: PortLabel) -> bool {
+    use PortLabel::*;
+    let Some(from) = from else {
+        return true;
+    };
+    let even_column = here_x.is_multiple_of(2);
+    !matches!(
+        (from, to, even_column),
+        (XPlus, YPlus, true)
+            | (XPlus, YMinus, true)
+            | (YPlus, XMinus, false)
+            | (YMinus, XMinus, false)
+    )
+}
 
-impl SelectionPolicy for FirstAvailable {
-    fn select(&self, cands: &Candidates) -> PortId {
-        debug_assert!(!cands.is_empty(), "routing must admit at least one port");
-        cands.get(0)
+/// Whether `to` is safe to offer right now: legal per
+/// [`odd_even_turn_allowed`], *and* guaranteed not to strand the packet
+/// later. Continuing an axis is only ever forbidden as a followup to a turn
+/// (never as a straight continuation), so the sole danger is deferring the
+/// *other* axis until it becomes mandatory at a column where it's forbidden.
+/// Moving along Y never changes the column that gates the eventual X turn,
+/// so that side needs no lookahead (`here.x` already is the column the X
+/// turn will happen at); moving along X does change the column, so that
+/// side must check legality at `dst.x` — wherever the X axis will actually
+/// finish, not just one step ahead.
+fn odd_even_offer(here: Coord, dst: Coord, from: Option<PortLabel>, to: PortLabel) -> bool {
+    use PortLabel::*;
+    if !odd_even_turn_allowed(here.x, from, to) {
+        return false;
+    }
+    match to {
+        XPlus | XMinus if here.y != dst.y => {
+            let needed_y = if dst.y > here.y { YPlus } else { YMinus };
+            odd_even_turn_allowed(dst.x, Some(to), needed_y)
+        }
+        YPlus | YMinus if here.x != dst.x => {
+            let needed_x = if dst.x > here.x { XPlus } else { XMinus };
+            odd_even_turn_allowed(here.x, Some(to), needed_x)
+        }
+        _ => true,
+    }
+}
+
+/// Odd-even turn-model routing (Chiu 2000). More adaptive than a fixed-
+/// priority turn model (west-first et al.): both candidates, when both are
+/// offered, are a genuine tie — safe for any [`SelectionPolicy`] to pick
+/// between, unlike the mandatory-first turns above.
+pub struct OddEven;
+
+impl RoutingAlgorithm for OddEven {
+    fn route(&self, ctx: &RouteCtx) -> Candidates {
+        let here = ctx.topo.coord(ctx.here);
+        let dst = ctx.topo.coord(ctx.dst);
+        if here.x == dst.x && here.y == dst.y {
+            return Candidates::single(label_to_port(ctx, PortLabel::Local));
+        }
+        let from = match ctx.topo.label_for_port(ctx.here, ctx.in_port) {
+            PortLabel::Local => None,
+            lbl => Some(opposite(lbl)),
+        };
+
+        let (dirs, n) = productive_2d(here, dst);
+        let mut cands = Candidates::new();
+        for &to in dirs.iter().take(n) {
+            if odd_even_offer(here, dst, from, to) {
+                cands.push(label_to_port(ctx, to));
+            }
+        }
+        if cands.is_empty() {
+            // Reachable only via a history no legal multi-hop path produces
+            // (see `turn_route`'s equivalent fallback) — `odd_even_offer`'s
+            // safety analysis guarantees a real run never empties this set.
+            cands.push(label_to_port(ctx, dirs[0]));
+        }
+        cands
+    }
+
+    fn is_deterministic(&self) -> bool {
+        false
     }
 }
 
@@ -216,12 +367,13 @@ impl SelectionPolicy for FirstAvailable {
 mod tests {
     use super::*;
     use tessera_core::{RouterId, Topology};
-    use tessera_model::{Mesh2D, EAST, LOCAL, NORTH, SOUTH, WEST};
+    use tessera_model::{Mesh2D, Torus2D, EAST, LOCAL, NORTH, SOUTH, WEST};
 
     fn ctx<'a>(topo: &'a Mesh2D, here: u32, dst: u32, in_port: u8) -> RouteCtx<'a> {
         RouteCtx {
             here: RouterId(here),
             dst: RouterId(dst),
+            src: RouterId(here),
             in_port: PortId(in_port),
             topo,
         }
@@ -271,5 +423,106 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn ring_direction_picks_the_shorter_side() {
+        // 4-node ring: 3 -> 1 is shorter going + (wrap: 3->0->1, 2 hops) than
+        // - (3->2->1, 2 hops is a tie, so + wins); 3 -> 0 is shorter going +
+        // (1 hop via wrap) than - (3 hops).
+        assert_eq!(shorter_ring_plus(3, 0, 4), Some(true), "adjacent via wrap");
+        assert_eq!(
+            shorter_ring_plus(0, 3, 4),
+            Some(false),
+            "adjacent via wrap, other way"
+        );
+        assert_eq!(shorter_ring_plus(1, 1, 4), None, "no movement needed");
+    }
+
+    #[test]
+    fn torus_dor_wraps_through_the_dateline_when_shorter() {
+        let t = Torus2D::new(4, 4);
+        let router = TorusDimensionOrderXy::new(4, 4);
+        // (3,0) -> (0,0): wrapping east 1 hop beats going west 3 hops.
+        let here = t.router_at(tessera_core::Coord::new(3, 0, 0)).unwrap().0;
+        let dst = t.router_at(tessera_core::Coord::new(0, 0, 0)).unwrap().0;
+        let c = router.route(&RouteCtx {
+            here: RouterId(here),
+            dst: RouterId(dst),
+            src: RouterId(here),
+            in_port: PortId(LOCAL),
+            topo: &t,
+        });
+        assert_eq!(c.len(), 1);
+        assert_eq!(
+            c.get(0).0,
+            EAST,
+            "should wrap east rather than go west 3 hops"
+        );
+        assert!(
+            t.is_dateline(RouterId(here), c.get(0)),
+            "that hop crosses the dateline"
+        );
+    }
+
+    #[test]
+    fn torus_dor_drains_cleanly_with_dateline_vcs() {
+        // A full RC->VA->SA->ST run with real traffic must deliver everything
+        // and drain, proving the dateline VC-half restriction in
+        // `Simulation::stage_vc_alloc` doesn't strand packets (P1-F12).
+        use tessera_core::{PacketDesc, SimConfig, Simulation, TrafficGenerator};
+
+        struct AllPairs;
+        impl TrafficGenerator for AllPairs {
+            fn on_tick(
+                &self,
+                cycle: u64,
+                node: RouterId,
+                rng: &mut tessera_core::NodeRng,
+                out: &mut Vec<PacketDesc>,
+            ) {
+                if cycle < 200 && rng.next_f64() < 0.2 {
+                    let dst = RouterId((node.0 + 7) % 16);
+                    out.push(PacketDesc { dst, size: 4 });
+                }
+            }
+        }
+
+        let cfg = SimConfig {
+            buffer_depth: 4,
+            num_vcs: 2,
+            router_latency: 1,
+            link_latency: 1,
+            credit_delay: 1,
+            packet_size: 4,
+            seed: 21,
+        };
+        let mut sim = Simulation::new(
+            cfg,
+            Box::new(Torus2D::new(4, 4)),
+            Box::new(TorusDimensionOrderXy::new(4, 4)),
+            Box::new(FirstAvailable),
+            Box::new(RoundRobin::new()),
+            Box::new(RoundRobin::new()),
+            Box::new(RoundRobin::new()),
+            Box::new(AllPairs),
+        );
+        sim.set_injecting(true);
+        for _ in 0..1000 {
+            sim.tick();
+        }
+        sim.set_injecting(false);
+        let mut guard = 0;
+        while sim.in_flight() > 0 && guard < 50_000 {
+            sim.tick();
+            guard += 1;
+        }
+        assert_eq!(
+            sim.in_flight(),
+            0,
+            "torus DOR did not drain (possible deadlock)"
+        );
+        assert_eq!(sim.metrics.injected_packets, sim.metrics.ejected_packets);
+        assert!(sim.metrics.injected_packets > 0);
     }
 }
