@@ -4,7 +4,8 @@
 //! against third-party plugins.
 
 use tessera_core::{
-    Candidates, Coord, RouteCtx, RouterId, RoutingAlgorithm, SelectionPolicy, Topology,
+    Candidates, CongestionView, Coord, NodeRng, PortId, RngStreams, RouteCtx, RouterId,
+    RoutingAlgorithm, SelectionPolicy, Topology,
 };
 
 use crate::{PluginCtx, Registry};
@@ -36,6 +37,7 @@ pub fn check_routing(router: &dyn RoutingAlgorithm, topo: &dyn Topology) -> Resu
             let ctx = RouteCtx {
                 here,
                 dst,
+                src: here,
                 in_port: local,
                 topo,
             };
@@ -103,12 +105,23 @@ pub fn check_all_routing(
     Ok(())
 }
 
+/// A congestion view with no downstream state, for conformance checks that
+/// have no real router to read credits from.
+struct NoCongestion;
+
+impl CongestionView for NoCongestion {
+    fn free_slots(&self, _port: PortId) -> u16 {
+        0
+    }
+}
+
 /// Check a selection policy: it returns a port drawn from the admissible set.
-pub fn check_selection(policy: &dyn SelectionPolicy, cands: &Candidates) -> Result<(), String> {
+pub fn check_selection(policy: &mut dyn SelectionPolicy, cands: &Candidates) -> Result<(), String> {
     if cands.is_empty() {
         return Ok(());
     }
-    let chosen = policy.select(cands);
+    let mut rng: NodeRng = RngStreams::new(1).router(0);
+    let chosen = policy.select(cands, &NoCongestion, &mut rng);
     let in_set = (0..cands.len()).any(|i| cands.get(i).0 == chosen.0);
     if in_set {
         Ok(())

@@ -186,6 +186,7 @@ mod tests {
                 let ctx = RouteCtx {
                     here: RouterId(h),
                     dst: RouterId(d),
+                    src: RouterId(h),
                     in_port: local,
                     topo: &topo,
                 };

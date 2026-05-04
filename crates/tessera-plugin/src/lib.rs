@@ -18,7 +18,8 @@ use std::collections::HashMap;
 
 use tessera_core::{RoutingAlgorithm, SelectionPolicy, TrafficGenerator};
 use tessera_routing::{
-    DimensionOrderXy, DimensionOrderXyz, FirstAvailable, NegativeFirst, NorthLast, WestFirst,
+    DimensionOrderXy, DimensionOrderXyz, FirstAvailable, NegativeFirst, NorthLast, OddEven,
+    WestFirst,
 };
 use tessera_traffic::Uniform;
 
@@ -206,6 +207,10 @@ impl Plugin for Builtins {
             "negative-first",
             Box::new(|_| -> Box<dyn RoutingAlgorithm> { Box::new(NegativeFirst) }),
         );
+        r.register_routing(
+            "odd-even",
+            Box::new(|_| -> Box<dyn RoutingAlgorithm> { Box::new(OddEven) }),
+        );
         r.register_selection(
             "first-available",
             Box::new(|_| -> Box<dyn SelectionPolicy> { Box::new(FirstAvailable) }),
@@ -254,7 +259,14 @@ mod tests {
         let r = builtin_registry();
         assert_eq!(
             r.routing_names(),
-            ["negative-first", "north-last", "west-first", "xy", "xyz"]
+            [
+                "negative-first",
+                "north-last",
+                "odd-even",
+                "west-first",
+                "xy",
+                "xyz"
+            ]
         );
         assert_eq!(r.selection_names(), ["first-available"]);
         assert_eq!(r.traffic_names(), ["uniform"]);
