@@ -4,6 +4,12 @@
 
 use tessera_core::{NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
+mod adversarial;
+mod bimodal;
+
+pub use adversarial::{Hotspot, Transpose};
+pub use bimodal::Bimodal;
+
 /// Uniform random traffic: each cycle a node injects one packet with
 /// probability `rate` (packets/node/cycle), to a uniformly-chosen destination
 /// other than itself.
