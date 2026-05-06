@@ -4,7 +4,7 @@
 use tessera_cli::{build_sim, run_point, RunParams};
 use tessera_core::{PacketDesc, RouterId, SimConfig, Simulation, TrafficGenerator};
 use tessera_model::Mesh2D;
-use tessera_routing::{DimensionOrderXy, FirstAvailable};
+use tessera_routing::{DimensionOrderXy, FirstAvailable, RoundRobin};
 
 /// Injects exactly one packet (node 0 → a fixed destination) at cycle 0.
 struct OneShot {
@@ -47,6 +47,9 @@ fn zero_load_latency_matches_pipeline_formula() {
         Box::new(Mesh2D::new(4, 4)),
         Box::new(DimensionOrderXy),
         Box::new(FirstAvailable),
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
         Box::new(OneShot {
             dst: RouterId(3),
             size,

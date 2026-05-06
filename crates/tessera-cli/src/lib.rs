@@ -3,10 +3,10 @@
 //! measurement / drain harness for one offered load. Routing components are
 //! resolved by string key through the plugin [`Registry`](tessera_plugin::Registry).
 
-use tessera_core::{RoutingAlgorithm, SimConfig, Simulation};
+use tessera_core::{Allocator, RoutingAlgorithm, SimConfig, Simulation};
 use tessera_model::Mesh2D;
 use tessera_plugin::{builtin_registry, PluginCtx};
-use tessera_routing::FirstAvailable;
+use tessera_routing::{FirstAvailable, RoundRobin};
 use tessera_stats::RunPoint;
 use tessera_traffic::Uniform;
 
@@ -39,12 +39,43 @@ pub fn build_sim_with(
     rate: f64,
     routing: Box<dyn RoutingAlgorithm>,
 ) -> Simulation {
+    build_sim_with_allocators(
+        width,
+        height,
+        cfg,
+        rate,
+        routing,
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
+    )
+}
+
+/// As [`build_sim_with`], but with explicit VA/SA-phase-1/SA-phase-2 arbiters
+/// instead of the [`RoundRobin`] default — how a config selecting `matrix` or
+/// `islip` (P1-F6) would wire a run.
+// One param per Simulation::new component; same justified width as that
+// constructor.
+#[allow(clippy::too_many_arguments)]
+pub fn build_sim_with_allocators(
+    width: u16,
+    height: u16,
+    cfg: SimConfig,
+    rate: f64,
+    routing: Box<dyn RoutingAlgorithm>,
+    va_alloc: Box<dyn Allocator>,
+    sa1_alloc: Box<dyn Allocator>,
+    sa2_alloc: Box<dyn Allocator>,
+) -> Simulation {
     let nodes = width as u32 * height as u32;
     Simulation::new(
         cfg,
         Box::new(Mesh2D::new(width, height)),
         routing,
         Box::new(FirstAvailable),
+        va_alloc,
+        sa1_alloc,
+        sa2_alloc,
         Box::new(Uniform::new(nodes, rate, cfg.packet_size)),
     )
 }

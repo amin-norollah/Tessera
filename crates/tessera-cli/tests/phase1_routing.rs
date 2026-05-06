@@ -44,7 +44,14 @@ fn drains_cleanly(routing: &str) {
 
 #[test]
 fn every_router_delivers_and_drains() {
-    for routing in ["xy", "xyz", "west-first", "north-last", "negative-first"] {
+    for routing in [
+        "xy",
+        "xyz",
+        "west-first",
+        "north-last",
+        "negative-first",
+        "odd-even",
+    ] {
         drains_cleanly(routing);
     }
 }

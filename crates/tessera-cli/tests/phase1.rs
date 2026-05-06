@@ -9,7 +9,7 @@ use tessera_core::{
     PacketDesc, PortId, RouterId, SimConfig, Simulation, TrafficGenerator, VcId, VcState,
 };
 use tessera_model::{Mesh2D, LOCAL};
-use tessera_routing::{DimensionOrderXy, FirstAvailable};
+use tessera_routing::{DimensionOrderXy, FirstAvailable, RoundRobin};
 
 fn params(vcs: u8, seed: u64) -> RunParams {
     RunParams {
@@ -108,6 +108,9 @@ fn vc_state_machine_advances() {
         Box::new(Mesh2D::new(4, 4)),
         Box::new(DimensionOrderXy),
         Box::new(FirstAvailable),
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
+        Box::new(RoundRobin::new()),
         Box::new(OneShot),
     );
 
