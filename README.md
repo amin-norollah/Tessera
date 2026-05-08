@@ -8,10 +8,16 @@ run, and keeps the power/area/thermal modeling that made PAT-Noxim useful for
 research; without the SystemC baggage (single-threaded kernel, global state,
 compile-time-fixed sizes, no snapshot/replay).
 
-**Status: Phase 0 (core prototype).** The Rust engine spine runs: a deterministic,
-double-buffered BSP kernel on a 2D mesh with XY routing, single-VC credit flow
-control, uniform traffic, and a headless latency-throughput runner. The Angular
-front-end is scaffolded in [`web/`](web/) but not yet built out.
+**Status: Phase 1 (full router microarchitecture + config).** The Rust engine runs a
+cycle-accurate, multi-VC, credit-flow-controlled router (RC→VA→SA→ST) over 2D mesh
+and torus topologies, with a routing family (XY/XYZ, west-first/north-last/negative-
+first/odd-even, torus-aware DOR, table-based/Noxim-imported), a selection family
+(first-available, buffer-level, round-robin, random), and pluggable VA/SA arbiters
+(round-robin, matrix, iSLIP) behind a shared `Allocator` trait. `tessera-config`
+validates runtime configs and imports legacy Noxim traffic/routing tables. Fully-
+adaptive + Duato escape-VC routing is a deferred, explicitly-documented follow-up
+(see `docs/phases/PHASE_1_PRD.md` §7.1). The Angular front-end is scaffolded in
+[`web/`](web/) but not yet built out.
 
 ## Build, run, test
 
@@ -23,9 +29,9 @@ no per-package `node_modules`).
 ```sh
 npm install              # once: tooling + web deps (hoisted to the root)
 
-# Rust engine (Phase 0 simulator)
+# Rust engine (Phase 1 simulator)
 npm run sim:build        # compile the workspace
-npm run sim:test         # run the test suite (incl. the Phase 0 gate checks)
+npm run sim:test         # run the test suite (incl. the Phase 0/1 gate checks)
 npm run sim:run -- --rate 0.1 --width 8 --height 8      # one operating point
 npm run sim:sweep        # 8x8 latency-throughput sweep -> curve.csv
 npm run sim:run -- --help                                # all options
@@ -78,7 +84,9 @@ Everything lives in [`docs/`](docs/); start there:
 - [`docs/RESEARCH_NOTES.md`](docs/RESEARCH_NOTES.md); the domain research (papers,
   tools, simulators) behind the design decisions, with sources.
 
-We're working toward Phase 0 (the core prototype) now.
+Phase 2 (the stable plugin API) is substantially in place already (registry,
+wasmtime sandbox, conformance harness); Phase 3 (power/thermal + diagnostics) is
+next, after closing the remaining Phase 1 item (Duato escape-VC routing).
 
 ## License
 
