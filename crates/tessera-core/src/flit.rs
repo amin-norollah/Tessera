@@ -6,6 +6,7 @@
 //! recycles ids, so steady state does no per-flit heap allocation.
 
 use crate::ids::{FlitId, PacketId, RouterId, VcId};
+use crate::traits::Axis;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FlitKind {
@@ -47,11 +48,26 @@ pub struct FlitHeader {
     /// Earliest cycle this flit may leave its current buffer, i.e. arrival +
     /// router latency. Models the per-hop router pipeline delay.
     pub eligible_cycle: u64,
-    /// Set once this packet has crossed a torus dateline link
+    /// Set once this packet has crossed a torus dateline link *during its
+    /// current dimension's travel*
     /// ([`Topology::is_dateline`](crate::traits::Topology::is_dateline));
     /// from then on VC allocation restricts it to the upper VC half, the
-    /// standard 2-VC dateline deadlock-avoidance scheme (P1-F12).
+    /// standard 2-VC dateline deadlock-avoidance scheme (P1-F12). Reset
+    /// whenever `last_axis` changes (see below) — a dimension-order router
+    /// traverses each axis in one contiguous run, so the escape-VC argument
+    /// only needs to hold *within* one axis's run, never across axis
+    /// transitions (X-phase and Y-phase links are disjoint, so restarting
+    /// the escalation per axis can't reintroduce a cycle).
     pub dateline_crossed: bool,
+    /// The axis (`Axis::X`/`Y`/`Z`) of the port this flit last moved
+    /// through, or `None` before its first hop. `stage_route_compute` resets
+    /// `dateline_crossed` when the newly-committed port's axis differs from
+    /// this — otherwise a dateline crossing on one axis (e.g. wrapping X)
+    /// would incorrectly keep restricting an unrelated later axis's travel
+    /// (e.g. plain, non-wrapping Y movement) to the upper VC half, turning
+    /// it into a needless shared bottleneck and, worse, leaving no room to
+    /// escalate if that later axis *also* needs to wrap.
+    pub last_axis: Option<Axis>,
 }
 
 /// Pooled flit storage. Ids are recycled via the free list; no per-flit heap

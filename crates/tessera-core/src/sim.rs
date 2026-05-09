@@ -22,8 +22,8 @@ use crate::flit::{FlitArena, FlitHeader, FlitKind};
 use crate::ids::{FlitId, PacketId, PortId, RouterId, VcId};
 use crate::rng::{NodeRng, RngStreams};
 use crate::traits::{
-    AllocRequest, Allocator, CongestionView, GrantSet, PacketDesc, RouteCtx, RoutingAlgorithm,
-    SelectionPolicy, Topology, TrafficGenerator,
+    axis_of, AllocRequest, Allocator, CongestionView, GrantSet, PacketDesc, RouteCtx,
+    RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
 };
 
 /// The VC a packet is injected on at the local port. Injection uses a single
@@ -493,6 +493,7 @@ impl Simulation {
                 inject_cycle: cycle,
                 eligible_cycle: 0,
                 dateline_crossed: false,
+                last_axis: None,
             };
             let flit = self.arena.alloc(header);
             self.pe_src[r as usize].push_back(flit.0);
@@ -537,6 +538,20 @@ impl Simulation {
                         &mut self.router_rng[r as usize],
                     );
                     self.reserve_port[idx] = port.0 as i16;
+
+                    // A dateline crossing only needs to keep restricting this
+                    // flit to the upper VC half for the rest of *this axis's*
+                    // travel; once dimension-order routing moves on to a new
+                    // axis, that axis's links are entirely disjoint from the
+                    // ones the crossing protected, so the escalation resets.
+                    if port.0 != self.local_port {
+                        let axis = axis_of(self.topo.label_for_port(RouterId(r), port));
+                        let h = self.arena.get_mut(flit);
+                        if h.last_axis != axis {
+                            h.dateline_crossed = false;
+                            h.last_axis = axis;
+                        }
+                    }
                 }
             }
         }

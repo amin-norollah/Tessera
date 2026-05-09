@@ -28,6 +28,23 @@ pub enum PortLabel {
     Local,
 }
 
+/// Which dimension a [`PortLabel`] moves along; `None` for [`PortLabel::Local`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Axis {
+    X,
+    Y,
+    Z,
+}
+
+pub fn axis_of(label: PortLabel) -> Option<Axis> {
+    match label {
+        PortLabel::XPlus | PortLabel::XMinus => Some(Axis::X),
+        PortLabel::YPlus | PortLabel::YMinus => Some(Axis::Y),
+        PortLabel::ZPlus | PortLabel::ZMinus => Some(Axis::Z),
+        PortLabel::Local => None,
+    }
+}
+
 /// Network structure as data: nodes, their ports, and how ports connect.
 pub trait Topology: Send + Sync {
     fn num_routers(&self) -> u32;
