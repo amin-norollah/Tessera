@@ -1,10 +1,10 @@
-//! Phase 1 checks for the multi-VC kernel: virtual channels raise throughput
-//! (G1.2), determinism and no-flit-loss survive multiple VCs (G1.4/G1.5), and
-//! the VC state machine advances Idle -> Routing -> Active -> Idle (P1-F1).
+//! Virtual channels: more VCs raise saturation throughput by relieving
+//! head-of-line blocking (G1.2), and the per-VC state machine advances
+//! Idle -> Routing -> Active -> Idle over a packet's lifetime (P1-F1).
 
 use std::collections::HashSet;
 
-use tessera_cli::{build_sim, run_point, RunParams};
+use tessera_cli::{run_point, RunParams};
 use tessera_core::{
     PacketDesc, PortId, RouterId, SimConfig, Simulation, TrafficGenerator, VcId, VcState,
 };
@@ -41,35 +41,6 @@ fn more_vcs_raise_saturation_throughput() {
     let a4 = run_point(&params(4, 7), rate).accepted_flit_rate;
     assert!(a2 > a1 + 0.005, "2 VCs should beat 1: {a1} -> {a2}");
     assert!(a4 > a2 + 0.005, "4 VCs should beat 2: {a2} -> {a4}");
-}
-
-#[test]
-fn multi_vc_is_deterministic() {
-    let a = run_point(&params(4, 11), 0.1);
-    let b = run_point(&params(4, 11), 0.1);
-    assert_eq!(a.injected_packets, b.injected_packets);
-    assert_eq!(a.ejected_packets, b.ejected_packets);
-    assert_eq!(a.avg_packet_latency, b.avg_packet_latency);
-    assert_eq!(a.accepted_flit_rate, b.accepted_flit_rate);
-}
-
-#[test]
-fn multi_vc_drains_with_no_flit_loss() {
-    let p = params(2, 5);
-    let mut sim = build_sim(p.width, p.height, p.cfg, 0.05);
-    sim.set_injecting(true);
-    for _ in 0..3000 {
-        sim.tick();
-    }
-    sim.set_injecting(false);
-    let mut guard = 0;
-    while sim.in_flight() > 0 && guard < p.drain_cap {
-        sim.tick();
-        guard += 1;
-    }
-    assert_eq!(sim.in_flight(), 0);
-    assert_eq!(sim.metrics.injected_packets, sim.metrics.ejected_packets);
-    assert!(sim.metrics.injected_packets > 0);
 }
 
 /// Injects one multi-flit packet (node 0 -> node 1) at cycle 0.

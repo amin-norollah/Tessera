@@ -1,7 +1,6 @@
-//! Phase 0 exit-gate checks: zero-load latency (pipelining + serialization),
-//! determinism, and no-flit-loss / full drain.
+//! Zero-load latency: with no contention, end-to-end packet latency must match
+//! the closed-form pipeline + wormhole-serialization formula (P0 exit gate).
 
-use tessera_cli::{build_sim, run_point, RunParams};
 use tessera_core::{PacketDesc, RouterId, SimConfig, Simulation, TrafficGenerator};
 use tessera_model::Mesh2D;
 use tessera_routing::{DimensionOrderXy, FirstAvailable, RoundRobin};
@@ -67,65 +66,4 @@ fn zero_load_latency_matches_pipeline_formula() {
     assert_eq!(sim.metrics.measured_packets, 1);
     assert_eq!(sim.metrics.latency_sum as u64, expected);
     assert_eq!(sim.in_flight(), 0, "single packet fully delivered");
-}
-
-fn params(seed: u64) -> RunParams {
-    RunParams {
-        width: 6,
-        height: 6,
-        cfg: SimConfig {
-            buffer_depth: 4,
-            num_vcs: 1,
-            router_latency: 1,
-            link_latency: 1,
-            credit_delay: 1,
-            packet_size: 4,
-            seed,
-        },
-        routing: "xy".to_string(),
-        warmup: 500,
-        measure: 3000,
-        drain_cap: 100_000,
-    }
-}
-
-#[test]
-fn identical_seed_is_reproducible() {
-    let p = params(7);
-    let a = run_point(&p, 0.1);
-    let b = run_point(&p, 0.1);
-    assert_eq!(a.injected_packets, b.injected_packets);
-    assert_eq!(a.ejected_packets, b.ejected_packets);
-    assert_eq!(a.avg_packet_latency, b.avg_packet_latency);
-    assert_eq!(a.accepted_flit_rate, b.accepted_flit_rate);
-
-    // A different seed produces a different run.
-    let c = run_point(&params(8), 0.1);
-    assert!(
-        c.injected_packets != a.injected_packets || c.avg_packet_latency != a.avg_packet_latency,
-        "different seed should change the run"
-    );
-}
-
-#[test]
-fn low_load_drains_with_no_flit_loss() {
-    let p = params(3);
-    let mut sim = build_sim(p.width, p.height, p.cfg, 0.05);
-    sim.measure_start = p.warmup;
-    sim.measure_end = p.warmup + p.measure;
-
-    sim.set_injecting(true);
-    for _ in 0..(p.warmup + p.measure) {
-        sim.tick();
-    }
-    sim.set_injecting(false);
-    let mut guard = 0;
-    while sim.in_flight() > 0 && guard < p.drain_cap {
-        sim.tick();
-        guard += 1;
-    }
-
-    assert_eq!(sim.in_flight(), 0, "network fully drained");
-    assert_eq!(sim.metrics.injected_packets, sim.metrics.ejected_packets);
-    assert!(sim.metrics.injected_packets > 0);
 }

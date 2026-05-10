@@ -1,7 +1,7 @@
 //! The `Allocator` trait must serve VA and both SA phases interchangeably
 //! (P1-F6): swapping `RoundRobin` for `Matrix`/`ISlip` should still deliver
 //! every packet and drain cleanly on a multi-VC mesh, the same property
-//! `phase1_routing.rs` checks for the routing family.
+//! `routing.test.rs` checks for the routing family.
 
 use tessera_cli::build_sim_with_allocators;
 use tessera_core::{Allocator, SimConfig};

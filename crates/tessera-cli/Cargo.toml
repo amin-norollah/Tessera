@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 description = "Tessera headless runner: latency-throughput sweeps over a 2D mesh."
+# Test files use the `*.test.rs` convention; a dotted stem is not a legal crate
+# name, so each integration test target is declared explicitly below.
+autotests = false
 
 [lib]
 name = "tessera_cli"
@@ -22,3 +25,51 @@ tessera-traffic.workspace = true
 tessera-stats.workspace = true
 tessera-config.workspace = true
 tessera-plugin.workspace = true
+
+[[test]]
+name = "allocators"
+path = "tests/allocators.test.rs"
+
+[[test]]
+name = "analytical"
+path = "tests/analytical.test.rs"
+
+[[test]]
+name = "bimodal_traffic"
+path = "tests/bimodal_traffic.test.rs"
+
+[[test]]
+name = "credit_conservation"
+path = "tests/credit_conservation.test.rs"
+
+[[test]]
+name = "determinism"
+path = "tests/determinism.test.rs"
+
+[[test]]
+name = "no_flit_loss"
+path = "tests/no_flit_loss.test.rs"
+
+[[test]]
+name = "plugin"
+path = "tests/plugin.test.rs"
+
+[[test]]
+name = "routing"
+path = "tests/routing.test.rs"
+
+[[test]]
+name = "routing_table_import"
+path = "tests/routing_table_import.test.rs"
+
+[[test]]
+name = "selection"
+path = "tests/selection.test.rs"
+
+[[test]]
+name = "virtual_channels"
+path = "tests/virtual_channels.test.rs"
+
+[[test]]
+name = "zero_load_latency"
+path = "tests/zero_load_latency.test.rs"

@@ -1,6 +1,6 @@
 //! The `SelectionPolicy` family (P1-F11) must all drive a real multi-VC run
 //! cleanly: every packet delivered, network fully drained. Mirrors
-//! `phase1_allocators.rs`'s treatment of the `Allocator` family.
+//! `allocators.test.rs`'s treatment of the `Allocator` family.
 //!
 //! Exercised against both a partial turn model (west-first, which has a
 //! *mandatory* direction whenever one is pending — `turn_route` must not
