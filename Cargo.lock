@@ -780,6 +780,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tessera-params"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "thiserror 1.0.69",
+ "toml",
+]
+
+[[package]]
 name = "tessera-plugin"
 version = "0.0.0"
 dependencies = [
@@ -788,6 +797,14 @@ dependencies = [
  "tessera-routing",
  "tessera-traffic",
  "wasmtime",
+]
+
+[[package]]
+name = "tessera-power"
+version = "0.0.0"
+dependencies = [
+ "tessera-core",
+ "tessera-params",
 ]
 
 [[package]]

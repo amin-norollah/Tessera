@@ -1,0 +1,181 @@
+# Tessera parameter profile — PTM 22 nm LVT (P3-F7)
+#
+# Representative low-Vt 22 nm electrical/area/thermal coefficients for the native
+# power/thermal models (INITIAL_PRD §9A). Every value carries a citation. The
+# absolute numbers are representative defaults sourced from public technology
+# models; for study-grade absolute accuracy, calibrate against a DSENT/HotSpot
+# FFI run and persist the fit as a new profile (P3-F10, calibrated mode).
+#
+# Per-flit capacitances assume flit_width_bits = 32.
+
+profile = "PTM 22nm LVT"
+node_nm = 22
+flit_width_bits = 32
+
+[electrical.voltage]
+value = 0.8
+unit = "V"
+source = { label = "ASU Predictive Technology Models, 22nm LVT", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Nominal low-voltage supply; dynamic energy scales as V^2, leakage as V."
+
+[electrical.frequency]
+value = 1.0e9
+unit = "Hz"
+source = { label = "ASU Predictive Technology Models", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Representative 1 GHz NoC clock; converts per-cycle energy to power."
+
+[power.alpha]
+value = 0.15
+unit = "1"
+source = { label = "DSENT (Sun et al., NOCS 2012), typical switching activity", doi_or_url = "https://projects.csail.mit.edu/wiki/pub/LSPgroup/PublicationList/dsent_nocs12.pdf" }
+notes = "Datapath switching activity factor; representative default."
+
+[power.c_buf_write]
+value = 3.0e-14
+unit = "F"
+source = { label = "DSENT electrical buffer model (NOCS 2012)", doi_or_url = "https://projects.csail.mit.edu/wiki/pub/LSPgroup/PublicationList/dsent_nocs12.pdf" }
+notes = "Aggregate switched capacitance per 32-bit flit written to an input FIFO."
+
+[power.c_buf_read]
+value = 2.4e-14
+unit = "F"
+source = { label = "DSENT electrical buffer model (NOCS 2012)", doi_or_url = "https://projects.csail.mit.edu/wiki/pub/LSPgroup/PublicationList/dsent_nocs12.pdf" }
+notes = "Aggregate switched capacitance per 32-bit flit read from an input FIFO."
+
+[power.c_xbar]
+value = 5.0e-14
+unit = "F"
+source = { label = "DSENT electrical crossbar model (NOCS 2012)", doi_or_url = "https://projects.csail.mit.edu/wiki/pub/LSPgroup/PublicationList/dsent_nocs12.pdf" }
+notes = "Aggregate switched capacitance per 32-bit flit crossbar traversal."
+
+[power.c_va_arb]
+value = 4.0e-15
+unit = "F"
+source = { label = "ORION 3.0 arbiter model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Control-path switched capacitance per VC-allocation arbitration event."
+
+[power.c_sa_arb]
+value = 4.0e-15
+unit = "F"
+source = { label = "ORION 3.0 arbiter model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Control-path switched capacitance per switch-allocation arbitration event."
+
+[power.c_clock]
+value = 8.0e-14
+unit = "F"
+source = { label = "ORION 3.0 clock model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Clock-tree switched capacitance charged once per router per cycle."
+
+[link.wire_cap_per_mm]
+value = 2.0e-13
+unit = "F/mm"
+source = { label = "ORION 3.0 wire model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Global interconnect capacitance per mm."
+
+[link.repeater_e_per_bit_per_mm]
+value = 5.0e-15
+unit = "J/(bit*mm)"
+source = { label = "ORION 3.0 repeater model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Repeater dynamic energy per bit per mm of link."
+
+[link.tile_pitch_mm]
+value = 1.0
+unit = "mm"
+source = { label = "Representative 22nm tile pitch (ITRS/IRDS)", doi_or_url = "https://irds.ieee.org/" }
+notes = "Default single-hop link length; used as hop distance for link energy."
+
+[leakage.i_leak0]
+value = 1.0e-3
+unit = "A"
+source = { label = "ASU PTM 22nm LVT leakage (Ioff)", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Per-router reference leakage current at t_ref_c; representative default."
+
+[leakage.t_ref_c]
+value = 25.0
+unit = "degC"
+source = { label = "ASU PTM reference temperature", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Temperature the leakage coefficients are pinned to."
+
+[leakage.vth]
+value = 0.25
+unit = "V"
+source = { label = "ASU PTM 22nm LVT threshold voltage", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Threshold voltage; drives the subthreshold temperature form."
+
+[leakage.eta]
+value = 1.3
+unit = "1"
+source = { label = "Subthreshold ideality factor (Rabaey, Digital Integrated Circuits)", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Subthreshold slope ideality; representative default."
+
+[leakage.tei_v_inv]
+value = 0.5
+unit = "V"
+source = { label = "TEI leakage law — see RESEARCH_NOTES D5 (ASU PTM near-threshold)", doi_or_url = "http://ptm.asu.edu/" }
+notes = "Below this supply voltage the TEI-aware law inverts the leakage-vs-temperature slope; representative modeling coefficient."
+
+[leakage.tei_coeff]
+value = 0.004
+unit = "1/K"
+source = { label = "TEI leakage law — see RESEARCH_NOTES D5", doi_or_url = "http://ptm.asu.edu/" }
+notes = "TEI slope magnitude; representative modeling coefficient, calibrate per study."
+
+[area.a_buf_bit]
+value = 1.5e-6
+unit = "mm^2/bit"
+source = { label = "ORION 3.0 area model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Area of one input-buffer bit-cell."
+
+[area.a_xbar_coeff]
+value = 8.0e-6
+unit = "mm^2"
+source = { label = "ORION 3.0 area model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Crossbar area per (port^2 * flit-bit)."
+
+[area.a_arb]
+value = 3.0e-4
+unit = "mm^2"
+source = { label = "ORION 3.0 area model (Kahng et al.)", doi_or_url = "https://vlsicad.ucsd.edu/Publications/Journals/j113.pdf" }
+notes = "Fixed allocator/control-logic area per router."
+
+[thermal.si_k]
+value = 130.0
+unit = "W/(m*K)"
+source = { label = "HotSpot 6.0 silicon defaults (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Silicon thermal conductivity."
+
+[thermal.si_cp]
+value = 700.0
+unit = "J/(kg*K)"
+source = { label = "HotSpot 6.0 silicon defaults (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Silicon specific heat."
+
+[thermal.si_density]
+value = 2330.0
+unit = "kg/m^3"
+source = { label = "HotSpot 6.0 silicon defaults (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Silicon density."
+
+[thermal.die_thickness_m]
+value = 1.5e-4
+unit = "m"
+source = { label = "HotSpot 6.0 package defaults (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Active-die thickness."
+
+[thermal.tile_area_m2]
+value = 1.0e-6
+unit = "m^2"
+source = { label = "Representative 22nm tile area (ITRS/IRDS)", doi_or_url = "https://irds.ieee.org/" }
+notes = "Per-tile die footprint."
+
+[thermal.r_conv_k_per_w]
+value = 0.5
+unit = "K/W"
+source = { label = "HotSpot 6.0 convective resistance default (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Lumped tile-to-ambient thermal resistance."
+
+[thermal.t_amb_c]
+value = 45.0
+unit = "degC"
+source = { label = "HotSpot 6.0 ambient default (UVA LAVA)", doi_or_url = "https://lava.cs.virginia.edu/HotSpot/" }
+notes = "Ambient temperature."
