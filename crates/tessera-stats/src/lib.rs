@@ -1,6 +1,9 @@
 //! Metrics summarisation and export. Phase 0 produces latency-throughput sweep
-//! points and writes them as CSV; the columnar Arrow/Parquet store arrives in
-//! Phase 3/4.
+//! points and writes them as CSV; Phase 3 adds the [`stream`] module — a
+//! bounded-memory streaming time-series (P3-F14/N2) whose pluggable sink is the
+//! seam for the columnar Arrow/Parquet store.
+
+pub mod stream;
 
 use std::fmt::Write as _;
 use std::fs;

@@ -773,6 +773,13 @@ name = "tessera-core"
 version = "0.0.0"
 
 [[package]]
+name = "tessera-diag"
+version = "0.0.0"
+dependencies = [
+ "tessera-core",
+]
+
+[[package]]
 name = "tessera-model"
 version = "0.0.0"
 dependencies = [
@@ -820,6 +827,13 @@ name = "tessera-stats"
 version = "0.0.0"
 dependencies = [
  "tessera-core",
+]
+
+[[package]]
+name = "tessera-thermal"
+version = "0.0.0"
+dependencies = [
+ "tessera-params",
 ]
 
 [[package]]
