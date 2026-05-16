@@ -21,7 +21,7 @@
 //! this crate therefore assert model **behaviour** (V² scaling, leakage-law
 //! shapes, link distance scaling, area monotonicity), not absolute numbers.
 
-use tessera_core::RouterId;
+use tessera_core::{ActivityCounts, RouterId};
 use tessera_params::ParamDb;
 
 /// Energy in joules.
@@ -141,6 +141,73 @@ impl NativePowerModel {
     }
 }
 
+/// Dynamic energy attributed to each router subsystem over some interval, in
+/// joules — the output of [`NativePowerModel::energy_from_counts`].
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EnergyBreakdown {
+    /// Buffer read + write energy.
+    pub buffers: Joules,
+    /// Crossbar traversal energy.
+    pub crossbar: Joules,
+    /// VC + switch arbitration energy.
+    pub arbitration: Joules,
+    /// Link (wire + repeater) energy.
+    pub links: Joules,
+    /// Clock-tree energy.
+    pub clock: Joules,
+}
+
+impl EnergyBreakdown {
+    /// Total dynamic energy across all subsystems.
+    pub fn total(&self) -> Joules {
+        self.buffers + self.crossbar + self.arbitration + self.links + self.clock
+    }
+
+    /// Accumulate another breakdown (network-wide reduction, fixed order).
+    pub fn add(&mut self, o: &EnergyBreakdown) {
+        self.buffers += o.buffers;
+        self.crossbar += o.crossbar;
+        self.arbitration += o.arbitration;
+        self.links += o.links;
+        self.clock += o.clock;
+    }
+}
+
+impl NativePowerModel {
+    /// Convert accumulated [`ActivityCounts`] into a per-subsystem dynamic
+    /// [`EnergyBreakdown`] (P3-F1). This is the off-the-hot-path pass: the
+    /// kernel only counts events; energy is computed here from the parameter DB.
+    /// `link_flits` are charged at the profile's flit width over one tile pitch.
+    pub fn energy_from_counts(
+        &self,
+        counts: &ActivityCounts,
+        node: RouterId,
+        p: &ParamDb,
+    ) -> EnergyBreakdown {
+        let e = |a| self.dynamic_energy(a, node, p);
+        let link_flit_energy = self.link_energy(p.flit_width_bits, p.link.tile_pitch_mm.value, p);
+        EnergyBreakdown {
+            buffers: counts.buf_write as f64 * e(Activity::BufWrite)
+                + counts.buf_read as f64 * e(Activity::BufRead),
+            crossbar: counts.xbar as f64 * e(Activity::Xbar),
+            arbitration: counts.va_arb as f64 * e(Activity::VaArb)
+                + counts.sa_arb as f64 * e(Activity::SaArb),
+            links: counts.link_flits as f64 * link_flit_energy,
+            clock: counts.clock as f64 * e(Activity::Clock),
+        }
+    }
+
+    /// Average power (W) implied by `energy_j` dissipated over `cycles` cycles at
+    /// the profile clock: `P = E · f / cycles`. Returns 0 for a zero-cycle span.
+    pub fn average_power(&self, energy_j: Joules, cycles: u64, p: &ParamDb) -> Watts {
+        if cycles == 0 {
+            0.0
+        } else {
+            energy_j * p.electrical.frequency.value / cycles as f64
+        }
+    }
+}
+
 impl PowerModel for NativePowerModel {
     fn dynamic_energy(&self, activity: Activity, _node: RouterId, p: &ParamDb) -> Joules {
         let v = p.electrical.voltage.value;
@@ -184,6 +251,7 @@ impl AreaModel for NativeAreaModel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tessera_core::ActivityCounts;
     use tessera_params::ParamDb;
 
     const PTM: &str = include_str!("../../../params/ptm_22nm.toml");
@@ -335,5 +403,75 @@ mod tests {
         assert!(more_vcs > base_area);
         assert!(deeper > base_area);
         assert!(wider > base_area);
+    }
+
+    #[test]
+    fn energy_from_counts_matches_manual_sum() {
+        let m = NativePowerModel::default();
+        let p = db();
+        let c = ActivityCounts {
+            buf_write: 10,
+            buf_read: 8,
+            xbar: 5,
+            va_arb: 3,
+            sa_arb: 5,
+            link_flits: 5,
+            clock: 100,
+        };
+        let b = m.energy_from_counts(&c, R0, &p);
+        let e = |a| m.dynamic_energy(a, R0, &p);
+        approx(
+            b.buffers,
+            10.0 * e(Activity::BufWrite) + 8.0 * e(Activity::BufRead),
+        );
+        approx(b.crossbar, 5.0 * e(Activity::Xbar));
+        approx(
+            b.arbitration,
+            3.0 * e(Activity::VaArb) + 5.0 * e(Activity::SaArb),
+        );
+        approx(
+            b.links,
+            5.0 * m.link_energy(p.flit_width_bits, p.link.tile_pitch_mm.value, &p),
+        );
+        approx(b.clock, 100.0 * e(Activity::Clock));
+        approx(
+            b.total(),
+            b.buffers + b.crossbar + b.arbitration + b.links + b.clock,
+        );
+        assert!(b.total() > 0.0);
+    }
+
+    #[test]
+    fn zero_counts_yield_zero_energy() {
+        let m = NativePowerModel::default();
+        let p = db();
+        let b = m.energy_from_counts(&ActivityCounts::default(), R0, &p);
+        assert_eq!(b.total(), 0.0);
+    }
+
+    #[test]
+    fn average_power_scales_with_frequency_and_span() {
+        let m = NativePowerModel::default();
+        let p = db();
+        let energy = 1.0e-9;
+        let f = p.electrical.frequency.value;
+        approx(m.average_power(energy, 1000, &p), energy * f / 1000.0);
+        assert_eq!(m.average_power(energy, 0, &p), 0.0);
+    }
+
+    #[test]
+    fn energy_breakdown_add_reduces_in_order() {
+        let mut acc = EnergyBreakdown::default();
+        let one = EnergyBreakdown {
+            buffers: 1.0,
+            crossbar: 2.0,
+            arbitration: 3.0,
+            links: 4.0,
+            clock: 5.0,
+        };
+        acc.add(&one);
+        acc.add(&one);
+        approx(acc.total(), 2.0 * one.total());
+        approx(acc.buffers, 2.0);
     }
 }

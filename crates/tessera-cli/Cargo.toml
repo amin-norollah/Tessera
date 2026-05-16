@@ -26,9 +26,23 @@ tessera-stats.workspace = true
 tessera-config.workspace = true
 tessera-plugin.workspace = true
 
+[dev-dependencies]
+tessera-params.workspace = true
+tessera-power.workspace = true
+tessera-thermal.workspace = true
+tessera-diag.workspace = true
+
 [[test]]
 name = "allocators"
 path = "tests/allocators.test.rs"
+
+[[test]]
+name = "power_accounting"
+path = "tests/power_accounting.test.rs"
+
+[[test]]
+name = "diagnostics"
+path = "tests/diagnostics.test.rs"
 
 [[test]]
 name = "analytical"

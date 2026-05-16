@@ -22,6 +22,17 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     `BatchSink` (Vec/CSV; Arrow/Parquet writer is the drop-in next step) and fixed-order
     deterministic reductions (P3-F14/N2/N3).
 
+  - kernel wiring: the `Simulation` stage kernels now accumulate cheap per-router
+    `ActivityCounts` (buffer read/write, crossbar, VA/SA arbitration, link flits, clock)
+    and cumulative `total_hops`, and expose `activity()`/`network_activity()`/
+    `router_occupancy()` observables — no upward dependency on `tessera-power`
+    (P3-F1, hot-path accumulation only). `tessera-power` gains `EnergyBreakdown` +
+    `energy_from_counts`/`average_power` to convert counts to energy off the hot path.
+    End-to-end tests tie the chain together: activity→energy→power→temperature on a
+    live mesh run, count self-consistency + determinism, and diagnostics built from
+    observable state (healthy run trips nothing, frozen snapshot trips the deadlock
+    detector, invariant checker catches injected flit loss).
+
   All models are behaviour-tested (V² scaling, leakage-law shapes incl. TEI inversion,
   link distance scaling, area monotonicity, analytic RC transient/steady-state, detector
   firing on crafted cases, `O(batch)` memory over a 100k-row run). Absolute-accuracy

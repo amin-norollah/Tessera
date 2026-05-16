@@ -111,6 +111,51 @@ pub struct Metrics {
     pub latency_sum: u128,
     /// Flits ejected while the clock was inside the measurement window.
     pub ejected_flits_in_window: u64,
+    /// Cumulative inter-router hops across all flits — the network-wide movement
+    /// indicator diagnostics use to tell livelock (rising) from deadlock
+    /// (frozen). Equals the total number of link traversals.
+    pub total_hops: u64,
+}
+
+/// Per-router datapath activity-event counts, accumulated by the stage kernels
+/// so the power model can convert them into energy **off the hot path** (P3-F1);
+/// the kernel itself never links against `tessera-power`. Counts are events, not
+/// energy: `link_flits` counts flit-link traversals, and the power layer
+/// multiplies by flit width and the per-event energy from the parameter DB.
+///
+/// Cheap integer increments in fixed stage order keep accounting deterministic
+/// and order-independent under parallelism (P3-N3) with bounded overhead
+/// (P3-N2).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ActivityCounts {
+    /// Flits written into an input buffer (link arrival + injection).
+    pub buf_write: u64,
+    /// Flits read out of an input buffer to cross the switch.
+    pub buf_read: u64,
+    /// Crossbar traversals.
+    pub xbar: u64,
+    /// VC-allocation grants.
+    pub va_arb: u64,
+    /// Switch-allocation grants.
+    pub sa_arb: u64,
+    /// Flit traversals launched onto an inter-router link.
+    pub link_flits: u64,
+    /// Clock ticks (one per router per cycle).
+    pub clock: u64,
+}
+
+impl ActivityCounts {
+    /// Accumulate another router's counts into this one (network-wide reduction,
+    /// in the caller's fixed iteration order for determinism).
+    pub fn add(&mut self, o: &ActivityCounts) {
+        self.buf_write += o.buf_write;
+        self.buf_read += o.buf_read;
+        self.xbar += o.xbar;
+        self.va_arb += o.va_arb;
+        self.sa_arb += o.sa_arb;
+        self.link_flits += o.link_flits;
+        self.clock += o.clock;
+    }
 }
 
 impl Metrics {
@@ -166,6 +211,9 @@ pub struct Simulation {
 
     /// Scheduled credit returns: (router, port, vc, apply_cycle).
     credit_returns: Vec<(u32, u8, u8, u64)>,
+
+    /// Per-router datapath activity counts for the power model (P3-F1).
+    activity: Vec<ActivityCounts>,
 
     pe_src: Vec<VecDeque<u32>>,
     pe_rng: Vec<NodeRng>,
@@ -253,6 +301,7 @@ impl Simulation {
             credits,
             links: vec![Vec::new(); per_port],
             credit_returns: Vec::new(),
+            activity: vec![ActivityCounts::default(); n as usize],
             pe_src: (0..n).map(|_| VecDeque::new()).collect(),
             pe_rng,
             router_rng,
@@ -378,7 +427,51 @@ impl Simulation {
         r as usize * self.ports as usize + port as usize
     }
 
+    /// Per-router datapath activity counts accumulated so far (P3-F1).
+    pub fn activity(&self) -> &[ActivityCounts] {
+        &self.activity
+    }
+
+    /// Network-wide activity counts, reduced in fixed router order (P3-N3).
+    pub fn network_activity(&self) -> ActivityCounts {
+        let mut sum = ActivityCounts::default();
+        for a in &self.activity {
+            sum.add(a);
+        }
+        sum
+    }
+
+    /// Per-router mean input-buffer occupancy in `0.0..=1.0`, over the real
+    /// (connected, non-local) input lanes. An observable for congestion/health
+    /// diagnostics (`tessera-diag`); reads state only, never mutates it.
+    pub fn router_occupancy(&self) -> Vec<f32> {
+        let n = self.topo.num_routers();
+        let mut occ = Vec::with_capacity(n as usize);
+        for r in 0..n {
+            let (mut used, mut cap) = (0u32, 0u32);
+            for p in 0..self.ports {
+                if p == self.local_port || self.topo.adjacent(RouterId(r), PortId(p)).is_none() {
+                    continue;
+                }
+                for v in 0..self.vcs {
+                    used += self.buffers.len(r, p, v) as u32;
+                    cap += self.cfg.buffer_depth as u32;
+                }
+            }
+            occ.push(if cap == 0 {
+                0.0
+            } else {
+                used as f32 / cap as f32
+            });
+        }
+        occ
+    }
+
     pub fn tick(&mut self) {
+        // Clock tree toggles every cycle at every router, active or not.
+        for a in &mut self.activity {
+            a.clock += 1;
+        }
         self.apply_credit_returns();
         self.stage_link_traversal();
         self.stage_inject();
@@ -428,6 +521,7 @@ impl Simulation {
                         self.arena.get_mut(FlitId(flit)).eligible_cycle = eligible;
                         let pushed = self.buffers.push(dr.0, dp.0, vc, FlitId(flit));
                         debug_assert!(pushed, "credit flow control guarantees a free slot");
+                        self.activity[dr.0 as usize].buf_write += 1;
                         self.links[link].swap_remove(i);
                     } else {
                         i += 1;
@@ -465,6 +559,7 @@ impl Simulation {
                 let flit = self.pe_src[r as usize].pop_front().unwrap();
                 self.arena.get_mut(FlitId(flit)).eligible_cycle = eligible;
                 self.buffers.push(r, lp, INJECT_VC, FlitId(flit));
+                self.activity[r as usize].buf_write += 1;
             }
         }
     }
@@ -627,6 +722,7 @@ impl Simulation {
                     let out = self.civ(r, op, ovc);
                     self.hold[out] = holder;
                     self.reserve_vc[idx] = ovc as i16;
+                    self.activity[r as usize].va_arb += 1;
                 }
             }
         }
@@ -725,11 +821,20 @@ impl Simulation {
                 let in_idx = self.civ(r, ip, ivc);
                 let ovc = self.reserve_vc[in_idx] as u8;
 
+                // Every granted flit is read from its buffer, arbitrated (SA),
+                // and crosses the crossbar — whether ejected or forwarded.
+                let act = &mut self.activity[r as usize];
+                act.buf_read += 1;
+                act.sa_arb += 1;
+                act.xbar += 1;
+
                 if op == self.local_port {
                     self.eject(r, ip, ivc, op, ovc, flit);
                     continue;
                 }
 
+                self.activity[r as usize].link_flits += 1;
+                self.metrics.total_hops += 1;
                 let out_idx = self.civ(r, op, ovc);
                 self.buffers.pop(r, ip, ivc);
                 self.credits[out_idx] -= 1;
