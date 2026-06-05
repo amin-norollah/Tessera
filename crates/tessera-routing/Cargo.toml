@@ -8,6 +8,9 @@ description = "Tessera routing and selection algorithms (Phase 0: dimension-orde
 
 [dependencies]
 tessera-core.workspace = true
+# Opaque byte encoding for `Allocator::snapshot`/`restore` (P4-F1 keyframing of
+# fair arbiters' pointer state).
+bincode.workspace = true
 
 [dev-dependencies]
 tessera-model.workspace = true

@@ -291,6 +291,25 @@ impl TrafficGenerator for SynFull {
         let next = self.sample_next(st, rng);
         self.state[idx].store(next as u32, Ordering::Relaxed);
     }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        let state: Vec<u32> = self
+            .state
+            .iter()
+            .map(|a| a.load(Ordering::Relaxed))
+            .collect();
+        // A `Vec<u32>` always encodes.
+        Some(bincode::serialize(&state).expect("Vec<u32> always serializes"))
+    }
+
+    fn restore(&self, bytes: &[u8]) {
+        // See `Netrace::restore`: the caller has already validated `bytes`
+        // came from this generator's own `snapshot`.
+        let state: Vec<u32> = bincode::deserialize(bytes).expect("valid SynFull snapshot bytes");
+        for (slot, value) in self.state.iter().zip(state) {
+            slot.store(value, Ordering::Relaxed);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -453,5 +472,47 @@ mod tests {
             gen.on_tick(cycle, RouterId(5), &mut rng, &mut out);
             assert_eq!(out[0].dst, RouterId(3));
         }
+    }
+
+    #[test]
+    fn snapshot_and_restore_round_trips_the_markov_state() {
+        let model = SynFullModel::from_toml(SIMPLE_MODEL, 8).unwrap();
+        let gen = SynFull::new(
+            model,
+            8,
+            sizing(),
+            ModelProvenance {
+                source: "inline".into(),
+            },
+        );
+        let mut rng = RngStreams::new(1).pe(0);
+        let mut out = Vec::new();
+        gen.on_tick(0, RouterId(0), &mut rng, &mut out);
+        assert_eq!(gen.current_state(RouterId(0)), 1, "advanced to state 'b'");
+
+        let bytes = gen.snapshot().expect("SynFull has stateful snapshot");
+
+        // Restore onto a fresh generator built the same way `SimSource`
+        // reconstruction would, not the original instance.
+        let model = SynFullModel::from_toml(SIMPLE_MODEL, 8).unwrap();
+        let restored = SynFull::new(
+            model,
+            8,
+            sizing(),
+            ModelProvenance {
+                source: "inline".into(),
+            },
+        );
+        assert_eq!(
+            restored.current_state(RouterId(0)),
+            0,
+            "fresh instance starts at the initial state"
+        );
+        restored.restore(&bytes);
+        assert_eq!(restored.current_state(RouterId(0)), 1);
+        assert_eq!(
+            restored.current_state(RouterId(1)),
+            gen.current_state(RouterId(1))
+        );
     }
 }

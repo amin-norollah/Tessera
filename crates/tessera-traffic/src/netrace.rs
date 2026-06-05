@@ -31,7 +31,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::BufRead;
 use std::sync::Mutex;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tessera_core::{Delivery, NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
 use crate::reorder::ReorderBuffer;
@@ -537,6 +537,98 @@ impl TrafficGenerator for Netrace {
             }
         }
     }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        let state = self.state.lock().unwrap();
+        let snap = NetraceStateSnapshot {
+            messages: state
+                .messages
+                .iter()
+                .map(|m| MessageMutableSnapshot {
+                    remaining_preds: m.remaining_preds,
+                    injected: m.injected,
+                    delivered: m.delivered,
+                })
+                .collect(),
+            ready: state
+                .ready
+                .iter()
+                .map(|q| q.iter().map(|&i| i as u32).collect())
+                .collect(),
+            rob_sources: state
+                .rob
+                .snapshot()
+                .into_iter()
+                .map(|(src, next, pending)| (src.0, next, pending))
+                .collect(),
+            delivered_order: state
+                .delivered_order
+                .iter()
+                .map(|(src, ids)| (src.0, ids.clone()))
+                .collect(),
+        };
+        // A hand-rolled `Vec<u8>`/`u32`/`u64`/`bool` DTO always encodes.
+        Some(bincode::serialize(&snap).expect("NetraceStateSnapshot always serializes"))
+    }
+
+    fn restore(&self, bytes: &[u8]) {
+        // `bytes` comes from this same generator's `snapshot` via a keyframe
+        // whose schema/dimensions the caller (`Simulation::restore`) has
+        // already validated against this run, so a decode failure here would
+        // indicate corrupt storage, not a reachable input this trait needs to
+        // report as a `Result`.
+        let snap: NetraceStateSnapshot =
+            bincode::deserialize(bytes).expect("valid Netrace snapshot bytes");
+        let mut state = self.state.lock().unwrap();
+        for (m, snap_m) in state.messages.iter_mut().zip(snap.messages) {
+            m.remaining_preds = snap_m.remaining_preds;
+            m.injected = snap_m.injected;
+            m.delivered = snap_m.delivered;
+        }
+        state.ready = snap
+            .ready
+            .into_iter()
+            .map(|q| q.into_iter().map(|i| i as usize).collect())
+            .collect();
+        state.rob.restore(
+            snap.rob_sources
+                .into_iter()
+                .map(|(src, next, pending)| (RouterId(src), next, pending))
+                .collect(),
+        );
+        state.delivered_order = snap
+            .delivered_order
+            .into_iter()
+            .map(|(src, ids)| (RouterId(src), ids))
+            .collect();
+    }
+}
+
+/// The subset of [`MessageState`] that changes after [`Netrace::load`]: the
+/// rest (`id`/`src`/`dst`/`size`/`dependents`/`src_seq`) is re-derived
+/// identically from the trace every load, so only this needs to travel.
+#[derive(Serialize, Deserialize)]
+struct MessageMutableSnapshot {
+    remaining_preds: u32,
+    injected: bool,
+    delivered: bool,
+}
+
+/// One `ReorderBuffer::snapshot()` source entry with `RouterId` lowered to a
+/// bare `u32` (source node, next-expected seq, buffered `(seq, message id)`
+/// pairs).
+type RobSourceWire = (u32, u64, Vec<(u64, u64)>);
+
+/// Wire form of [`NetraceState`] for [`TrafficGenerator::snapshot`]/`restore`
+/// (P4-F1): `RouterId`s travel as bare `u32`s so this crate doesn't need
+/// `tessera-core`'s `snapshot` feature just for this DTO.
+#[derive(Serialize, Deserialize)]
+struct NetraceStateSnapshot {
+    messages: Vec<MessageMutableSnapshot>,
+    /// Per (mapped) node: ready-but-not-yet-injected message indices, in order.
+    ready: Vec<Vec<u32>>,
+    rob_sources: Vec<RobSourceWire>,
+    delivered_order: Vec<(u32, Vec<u64>)>,
 }
 
 #[cfg(test)]
@@ -734,5 +826,73 @@ mod tests {
         deliver(0);
         deliver(1);
         assert_eq!(gen.delivered_order(RouterId(0)), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn snapshot_and_restore_round_trips_mid_replay_state() {
+        // Same fan-in trace as `a_message_is_not_ready_until_all_predecessors_delivered`.
+        let trace = NetraceTrace::parse(
+            "version 1\n\
+             0 0 5 control -\n\
+             1 1 5 control -\n\
+             2 5 9 data 0,1\n",
+        )
+        .unwrap();
+        let gen =
+            Netrace::load(&trace, 16, NodeMapping::Identity, sizing(), provenance("t")).unwrap();
+
+        // Deliver message 0 only; message 2 still awaits message 1.
+        gen.on_deliver(
+            1,
+            Delivery {
+                src: RouterId(0),
+                dst: RouterId(5),
+                size: 1,
+                tag: 0,
+                inject_cycle: 0,
+            },
+        );
+        assert_eq!(gen.outstanding_dependencies(), 1);
+
+        let bytes = gen.snapshot().expect("Netrace has stateful snapshot");
+
+        // Restore onto a fresh generator built the same way `SimSource`
+        // reconstruction would (from the same trace), not the original.
+        let restored =
+            Netrace::load(&trace, 16, NodeMapping::Identity, sizing(), provenance("t")).unwrap();
+        restored.restore(&bytes);
+        assert_eq!(restored.outstanding_dependencies(), 1);
+
+        // Deliver message 1 on both; message 2 must become ready identically.
+        let deliver_msg1 = |g: &Netrace| {
+            g.on_deliver(
+                3,
+                Delivery {
+                    src: RouterId(1),
+                    dst: RouterId(5),
+                    size: 1,
+                    tag: 1,
+                    inject_cycle: 0,
+                },
+            )
+        };
+        deliver_msg1(&gen);
+        deliver_msg1(&restored);
+
+        let rng = RngStreams::new(1).pe(5);
+        let mut out_gen = Vec::new();
+        let mut out_restored = Vec::new();
+        gen.on_tick(4, RouterId(5), &mut rng.clone(), &mut out_gen);
+        restored.on_tick(4, RouterId(5), &mut rng.clone(), &mut out_restored);
+
+        assert_eq!(
+            out_gen.len(),
+            1,
+            "message 2 should be ready after both deps deliver"
+        );
+        assert_eq!(out_restored.len(), 1);
+        assert_eq!(out_gen[0].dst, out_restored[0].dst);
+        assert_eq!(out_gen[0].size, out_restored[0].size);
+        assert_eq!(out_gen[0].tag, out_restored[0].tag);
     }
 }

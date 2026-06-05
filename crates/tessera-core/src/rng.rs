@@ -14,8 +14,15 @@ pub struct NodeRng {
 }
 
 impl NodeRng {
-    fn from_state(state: u64) -> Self {
+    /// Reconstruct a stream at an exact prior state (keyframe restore, P4-F1).
+    pub fn from_state(state: u64) -> Self {
         Self { state }
+    }
+
+    /// This stream's raw counter state, for keyframing (P4-F1).
+    #[inline]
+    pub fn state(&self) -> u64 {
+        self.state
     }
 
     #[inline]

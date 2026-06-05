@@ -31,6 +31,7 @@ tessera-params.workspace = true
 tessera-power.workspace = true
 tessera-thermal.workspace = true
 tessera-diag.workspace = true
+tessera-record.workspace = true
 
 [[test]]
 name = "allocators"
@@ -67,6 +68,10 @@ path = "tests/no_flit_loss.test.rs"
 [[test]]
 name = "plugin"
 path = "tests/plugin.test.rs"
+
+[[test]]
+name = "replay_equivalence"
+path = "tests/replay_equivalence.test.rs"
 
 [[test]]
 name = "routing"

@@ -18,6 +18,7 @@
 use std::collections::VecDeque;
 
 use crate::buffer::BufferPool;
+use crate::event::Event;
 use crate::flit::{FlitArena, FlitHeader, FlitKind};
 use crate::ids::{FlitId, PacketId, PortId, RouterId, VcId};
 use crate::rng::{NodeRng, RngStreams};
@@ -100,6 +101,7 @@ pub enum VcState {
 }
 
 #[derive(Clone, Default, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
 pub struct Metrics {
     pub injected_packets: u64,
     pub injected_flits: u64,
@@ -127,6 +129,7 @@ pub struct Metrics {
 /// and order-independent under parallelism (P3-N3) with bounded overhead
 /// (P3-N2).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActivityCounts {
     /// Flits written into an input buffer (link arrival + injection).
     pub buf_write: u64,
@@ -240,6 +243,11 @@ pub struct Simulation {
     /// values.
     sa2_reqs: Vec<AllocRequest>,
     sa2_grants: GrantSet,
+
+    /// Per-cycle observable events (P4-F4), or `None` while recording is off
+    /// (the default) — checked once per push site, no allocation or dispatch
+    /// on the non-recording path. See [`Simulation::record_events`].
+    events: Option<Vec<Event>>,
 }
 
 impl Simulation {
@@ -313,6 +321,7 @@ impl Simulation {
             phase1_winner_vc: vec![NONE; per_port],
             sa2_reqs: Vec::new(),
             sa2_grants: GrantSet::new(),
+            events: None,
             topo,
             routing,
             selection,
@@ -393,6 +402,19 @@ impl Simulation {
 
     pub fn set_injecting(&mut self, on: bool) {
         self.injecting = on;
+    }
+
+    /// Turns per-cycle [`Event`] collection on or off (`tessera-record`'s
+    /// hook, P4-F4). Off by default.
+    pub fn record_events(&mut self, on: bool) {
+        self.events = on.then(Vec::new);
+    }
+
+    /// Drains this cycle's recorded events (empty if recording is off).
+    /// Retains the buffer's capacity across calls, so draining once per cycle
+    /// costs no reallocation.
+    pub fn take_events(&mut self) -> Vec<Event> {
+        self.events.as_mut().map(std::mem::take).unwrap_or_default()
     }
 
     /// Flits generated but not yet delivered (includes source-queued flits).
@@ -570,6 +592,15 @@ impl Simulation {
         let size = desc.size.max(1);
         self.metrics.injected_packets += 1;
         self.metrics.injected_flits += size as u64;
+        if let Some(events) = &mut self.events {
+            events.push(Event::Injected {
+                cycle,
+                packet: pid.0,
+                src: r,
+                dst: desc.dst.0,
+                size,
+            });
+        }
         for seq in 0..size {
             let kind = match (size, seq) {
                 (1, _) => FlitKind::HeadTail,
@@ -634,6 +665,22 @@ impl Simulation {
                         &mut self.router_rng[r as usize],
                     );
                     self.reserve_port[idx] = port.0 as i16;
+
+                    if let Some(events) = &mut self.events {
+                        let mut cand_mask = 0u16;
+                        for i in 0..cands.len() {
+                            cand_mask |= 1u16 << cands.get(i).0;
+                        }
+                        events.push(Event::Routed {
+                            cycle,
+                            router: r,
+                            in_port: ip,
+                            in_vc: ivc,
+                            packet: header.packet.0,
+                            cand_mask,
+                            chosen: port.0,
+                        });
+                    }
 
                     // A dateline crossing only needs to keep restricting this
                     // flit to the upper VC half for the rest of *this axis's*
@@ -724,6 +771,20 @@ impl Simulation {
                     self.hold[out] = holder;
                     self.reserve_vc[idx] = ovc as i16;
                     self.activity[r as usize].va_arb += 1;
+
+                    if let Some(events) = &mut self.events {
+                        if let Some(flit) = self.buffers.front(r, ip, ivc) {
+                            events.push(Event::VcAlloc {
+                                cycle,
+                                router: r,
+                                in_port: ip,
+                                in_vc: ivc,
+                                packet: self.arena.get(flit).packet.0,
+                                out_port: op,
+                                out_vc: ovc,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -829,6 +890,26 @@ impl Simulation {
                 act.sa_arb += 1;
                 act.xbar += 1;
 
+                if let Some(events) = &mut self.events {
+                    let packet = self.arena.get(flit).packet.0;
+                    events.push(Event::SaGrant {
+                        cycle,
+                        router: r,
+                        in_port: ip,
+                        in_vc: ivc,
+                        packet,
+                        out_port: op,
+                    });
+                    events.push(Event::Traversed {
+                        cycle,
+                        router: r,
+                        packet,
+                        out_port: op,
+                        out_vc: ovc,
+                        flit: flit.0,
+                    });
+                }
+
                 if op == self.local_port {
                     self.eject(r, ip, ivc, op, ovc, flit);
                     continue;
@@ -878,6 +959,15 @@ impl Simulation {
             self.reserve_port[in_idx] = NONE;
             self.reserve_vc[in_idx] = NONE;
             self.hold[out_idx] = FREE;
+            if let Some(events) = &mut self.events {
+                events.push(Event::Delivered {
+                    cycle: self.cycle,
+                    packet: header.packet.0,
+                    src: header.src.0,
+                    dst: header.dst.0,
+                    latency: self.cycle - header.inject_cycle,
+                });
+            }
             self.traffic.on_deliver(
                 self.cycle,
                 Delivery {
@@ -902,4 +992,174 @@ impl Simulation {
             self.credit_returns.push((ur.0, up.0, ivc, apply_cycle));
         }
     }
+
+    /// Plain-data copy of everything needed to resume this simulation at its
+    /// current cycle (P4-F1 keyframe): trait objects (topology/routing/
+    /// selection/allocators/traffic) are NOT included — a keyframe is only
+    /// meaningful restored onto a `Simulation` freshly reconstructed from the
+    /// same config (see `tessera-record::SimSource`), which already recreates
+    /// those. Traffic-generator state that outlives a single tick (e.g.
+    /// Netrace's dependency ready-set) travels as opaque bytes via
+    /// [`TrafficGenerator::snapshot`].
+    pub fn snapshot(&self) -> EngineSnapshot {
+        let (arena_headers, arena_free) = self.arena.snapshot();
+        EngineSnapshot {
+            schema_version: ENGINE_SNAPSHOT_VERSION,
+            cycle: self.cycle,
+            metrics: self.metrics.clone(),
+            measure_start: self.measure_start,
+            measure_end: self.measure_end,
+            next_packet_id: self.next_packet_id,
+            injecting: self.injecting,
+            arena_headers,
+            arena_free,
+            buffers: self.buffers.snapshot(),
+            reserve_port: self.reserve_port.clone(),
+            reserve_vc: self.reserve_vc.clone(),
+            hold: self.hold.clone(),
+            credits: self.credits.clone(),
+            links: self.links.clone(),
+            credit_returns: self.credit_returns.clone(),
+            activity: self.activity.clone(),
+            pe_src: self
+                .pe_src
+                .iter()
+                .map(|q| q.iter().copied().collect())
+                .collect(),
+            pe_rng: self.pe_rng.iter().map(NodeRng::state).collect(),
+            router_rng: self.router_rng.iter().map(NodeRng::state).collect(),
+            traffic_state: self.traffic.snapshot(),
+            va_alloc_state: self.va_alloc.snapshot(),
+            sa1_alloc_state: self.sa1_alloc.snapshot(),
+            sa2_alloc_state: self.sa2_alloc.snapshot(),
+        }
+    }
+
+    /// Overlay a [`Self::snapshot`] onto this simulation. `self` must already
+    /// be a fresh, config-reconstructed `Simulation` with the same dimensions
+    /// (topology, VC count, buffer depth) the snapshot was taken from; errs on
+    /// a dimension mismatch rather than restoring into a corrupt state.
+    pub fn restore(&mut self, snap: EngineSnapshot) -> Result<(), RestoreError> {
+        let expected_lanes = self.reserve_port.len();
+        if snap.reserve_port.len() != expected_lanes || snap.reserve_vc.len() != expected_lanes {
+            return Err(RestoreError::DimensionMismatch(format!(
+                "snapshot has {} (port,vc)-lanes, this simulation has {expected_lanes}",
+                snap.reserve_port.len(),
+            )));
+        }
+        if snap.pe_rng.len() != self.pe_rng.len() || snap.router_rng.len() != self.router_rng.len()
+        {
+            return Err(RestoreError::DimensionMismatch(format!(
+                "snapshot has {} PE / {} router RNG streams, this simulation has {} / {}",
+                snap.pe_rng.len(),
+                snap.router_rng.len(),
+                self.pe_rng.len(),
+                self.router_rng.len(),
+            )));
+        }
+        self.buffers
+            .restore(snap.buffers)
+            .map_err(RestoreError::DimensionMismatch)?;
+
+        self.cycle = snap.cycle;
+        self.metrics = snap.metrics;
+        self.measure_start = snap.measure_start;
+        self.measure_end = snap.measure_end;
+        self.next_packet_id = snap.next_packet_id;
+        self.injecting = snap.injecting;
+        self.arena.restore(snap.arena_headers, snap.arena_free);
+        self.reserve_port = snap.reserve_port;
+        self.reserve_vc = snap.reserve_vc;
+        self.hold = snap.hold;
+        self.credits = snap.credits;
+        self.links = snap.links;
+        self.credit_returns = snap.credit_returns;
+        self.activity = snap.activity;
+        self.pe_src = snap.pe_src.into_iter().map(VecDeque::from).collect();
+        self.pe_rng = snap.pe_rng.into_iter().map(NodeRng::from_state).collect();
+        self.router_rng = snap
+            .router_rng
+            .into_iter()
+            .map(NodeRng::from_state)
+            .collect();
+        if let Some(bytes) = &snap.traffic_state {
+            self.traffic.restore(bytes);
+        }
+        if let Some(bytes) = &snap.va_alloc_state {
+            self.va_alloc.restore(bytes);
+        }
+        if let Some(bytes) = &snap.sa1_alloc_state {
+            self.sa1_alloc.restore(bytes);
+        }
+        if let Some(bytes) = &snap.sa2_alloc_state {
+            self.sa2_alloc.restore(bytes);
+        }
+        Ok(())
+    }
 }
+
+/// Bumped whenever [`EngineSnapshot`]'s fields change shape; `tessera-record`'s
+/// keyframe reader checks this before trusting a stored snapshot.
+pub const ENGINE_SNAPSHOT_VERSION: u16 = 1;
+
+/// Plain-data engine state sufficient to resume an otherwise
+/// config-reconstructed [`Simulation`] at `cycle` (P4-F1). See
+/// [`Simulation::snapshot`]/[`Simulation::restore`].
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
+pub struct EngineSnapshot {
+    pub schema_version: u16,
+    pub cycle: u64,
+    pub metrics: Metrics,
+    pub measure_start: u64,
+    pub measure_end: u64,
+    pub next_packet_id: u32,
+    pub injecting: bool,
+
+    pub arena_headers: Vec<FlitHeader>,
+    pub arena_free: Vec<FlitId>,
+    pub buffers: crate::buffer::BufferSnapshot,
+
+    pub reserve_port: Vec<i16>,
+    pub reserve_vc: Vec<i16>,
+    pub hold: Vec<i32>,
+    pub credits: Vec<u16>,
+    pub links: Vec<Vec<(u32, u64)>>,
+    pub credit_returns: Vec<(u32, u8, u8, u64)>,
+    pub activity: Vec<ActivityCounts>,
+
+    pub pe_src: Vec<Vec<u32>>,
+    pub pe_rng: Vec<u64>,
+    pub router_rng: Vec<u64>,
+
+    /// Opaque traffic-generator state (see [`TrafficGenerator::snapshot`]), or
+    /// `None` if the generator is stateless (fully reconstructed by restoring
+    /// `pe_rng`).
+    pub traffic_state: Option<Vec<u8>>,
+
+    /// Opaque allocator fairness/priority state (see [`Allocator::snapshot`]):
+    /// a fair arbiter's pointers are accumulated across cycles and aren't
+    /// derivable from config or RNG restore alone, just like traffic-
+    /// generator state above.
+    pub va_alloc_state: Option<Vec<u8>>,
+    pub sa1_alloc_state: Option<Vec<u8>>,
+    pub sa2_alloc_state: Option<Vec<u8>>,
+}
+
+/// A snapshot can't be restored onto this simulation as-is.
+#[derive(Debug)]
+pub enum RestoreError {
+    /// The snapshot's array lengths don't match this simulation's dimensions
+    /// (it was taken from a differently-shaped run).
+    DimensionMismatch(String),
+}
+
+impl std::fmt::Display for RestoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RestoreError::DimensionMismatch(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+impl std::error::Error for RestoreError {}

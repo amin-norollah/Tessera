@@ -7,3 +7,10 @@ rust-version.workspace = true
 description = "Tessera NoC simulator: identities, arenas, SoA storage, RNG, and the BSP kernel."
 
 [dependencies]
+serde = { workspace = true, optional = true }
+
+[features]
+# Off by default, so the engine spine stays dependency-free. Enables
+# `EngineSnapshot` + `Simulation::snapshot`/`restore` (P4-F1, `tessera-record`'s
+# keyframe writer/reader).
+snapshot = ["dep:serde"]

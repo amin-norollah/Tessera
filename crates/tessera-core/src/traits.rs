@@ -30,6 +30,7 @@ pub enum PortLabel {
 
 /// Which dimension a [`PortLabel`] moves along; `None` for [`PortLabel::Local`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
 pub enum Axis {
     X,
     Y,
@@ -217,6 +218,24 @@ pub trait TrafficGenerator: Send + Sync {
     fn on_deliver(&self, cycle: u64, delivery: Delivery) {
         let _ = (cycle, delivery);
     }
+
+    /// Serializes this generator's internal state for keyframing (P4-F1).
+    /// Default `None`: a generator whose `on_tick`/`on_deliver` draw only from
+    /// the passed-in [`NodeRng`] is stateless — restoring the RNG streams
+    /// already reconstructs it exactly. Path-dependent sources (e.g. Netrace's
+    /// dependency-resolution state, SynFull's per-node Markov index) override
+    /// this to capture what RNG restore alone can't.
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// Restores state produced by [`Self::snapshot`]. Default no-op, pairing
+    /// with the default `snapshot`. Takes `&self` like `on_tick`/`on_deliver`,
+    /// so an implementation with real state writes through interior
+    /// mutability.
+    fn restore(&self, bytes: &[u8]) {
+        let _ = bytes;
+    }
 }
 
 /// A bid: `requester` wants `resource`. A requester may appear more than once
@@ -303,4 +322,20 @@ pub trait Allocator: Send + Sync {
     /// Match `reqs` into `grants`. `grants` arrives already [`GrantSet::reset`]
     /// to this call's requester/resource counts.
     fn allocate(&mut self, reqs: &[AllocRequest], grants: &mut GrantSet);
+
+    /// Serializes this allocator's fairness/priority state for keyframing
+    /// (P4-F1). Default `None`: a stateless allocator has nothing beyond
+    /// `reqs`/`grants` to capture. Fair arbiters (round-robin pointers,
+    /// matrix priority relations, iSLIP grant/accept pointers) override this
+    /// — that state is accumulated across cycles and isn't derivable from
+    /// config or RNG restore alone.
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// Restores state produced by [`Self::snapshot`]. Default no-op, pairing
+    /// with the default `snapshot`.
+    fn restore(&mut self, bytes: &[u8]) {
+        let _ = bytes;
+    }
 }

@@ -71,6 +71,16 @@ impl Allocator for RoundRobin {
             }
         }
     }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        // `buckets` is per-call scratch, rebuilt from `reqs` every `allocate`;
+        // only the fairness pointer needs to survive a keyframe.
+        Some(bincode::serialize(&self.last_winner).expect("Vec<i64> always serializes"))
+    }
+
+    fn restore(&mut self, bytes: &[u8]) {
+        self.last_winner = bincode::deserialize(bytes).expect("valid RoundRobin snapshot bytes");
+    }
 }
 
 /// A matrix-style arbiter: each resource keeps a pairwise priority relation
@@ -141,6 +151,22 @@ impl Allocator for Matrix {
             }
             grants.grant(winner, resource as u32);
         }
+    }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        // `buckets` is per-call scratch; `(n, higher)` is the priority
+        // relation that must survive a keyframe.
+        Some(
+            bincode::serialize(&(self.n, &self.higher))
+                .expect("(usize, Vec<bool>) always serializes"),
+        )
+    }
+
+    fn restore(&mut self, bytes: &[u8]) {
+        let (n, higher): (usize, Vec<bool>) =
+            bincode::deserialize(bytes).expect("valid Matrix snapshot bytes");
+        self.n = n;
+        self.higher = higher;
     }
 }
 
@@ -242,6 +268,23 @@ impl Allocator for ISlip {
                 }
             }
         }
+    }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        // `candidate`/`matched_*`/`buckets` are per-call scratch, reset at the
+        // top of every `allocate`; only the two pointer vectors that carry
+        // fairness across cycles need to survive a keyframe.
+        Some(
+            bincode::serialize(&(&self.grant_ptr, &self.accept_ptr))
+                .expect("(Vec<i64>, Vec<i64>) always serializes"),
+        )
+    }
+
+    fn restore(&mut self, bytes: &[u8]) {
+        let (grant_ptr, accept_ptr): (Vec<i64>, Vec<i64>) =
+            bincode::deserialize(bytes).expect("valid ISlip snapshot bytes");
+        self.grant_ptr = grant_ptr;
+        self.accept_ptr = accept_ptr;
     }
 }
 

@@ -106,6 +106,58 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     streaming for multi-gigabyte traces (OUT-25, P3.5-N2), `TrafficCfg`→engine/CLI wiring
     for every traffic kind including these (OUT-26), and SynFull fidelity validation
     against published reference statistics (OUT-27, G3.5.2).
+- Phase 4 (in progress), Milestone A — deterministic keyframe/re-simulation spine
+  (G4.1/G4.2; recorder→Arrow/Parquet event stream, DuckDB query layer, SQLite catalog,
+  and run comparison are follow-on milestones, tracked as OUT-17):
+  - kernel: `Simulation` gains an additive, off-by-default `Event` stream (`Injected`,
+    `Routed{cand_mask,chosen}`, `VcAlloc`, `SaGrant`, `Traversed`, `Delivered{latency}`,
+    plus schema-complete-but-unemitted `Dropped`/recorder-sampled `BufOccupancy`/
+    `ThrottleOn`) pushed from the stage kernels only when `record_events(true)` is set —
+    a single well-predicted branch and no allocation on the non-recording path (P4-F4).
+  - kernel: `Simulation::snapshot()`/`restore()` capture/restore a plain-data
+    `EngineSnapshot` (arena, buffer pool, credit/reservation state, RNG stream states,
+    cycle/metrics) behind a new off-by-default `tessera-core` `snapshot` cargo feature
+    (P4-F1). Trait objects (topology/routing/selection/allocators/traffic) are **not**
+    serialized — a keyframe is only meaningful restored onto a `Simulation` freshly
+    reconstructed from the same config; the recorder-side seam for that reconstruction is
+    `tessera_record::SimSource`.
+  - `TrafficGenerator` and `Allocator` each gain additive `snapshot`/`restore` methods
+    (default no-op/`None`, so no existing implementation needs a change). Both `Netrace`
+    and `SynFull` implement them, since their internal state (dependency ready-set/
+    reorder-buffer state; per-node Markov index) is path-dependent and not derivable from
+    RNG-stream restore alone. Likewise `RoundRobin`/`Matrix`/`ISlip` implement them for
+    their fairness/priority pointers — a gap the replay-equivalence test itself caught:
+    restoring a keyframe onto fresh, config-reconstructed allocators silently reset their
+    round-robin pointers and produced a diverging (but each individually still
+    "deterministic") arbitration order a few grants after restore.
+  - new crate `tessera-record`: `keyframe::{KeyframeWriter, KeyframeReader}` (one
+    bincode-encoded file per keyframe cycle — bincode rather than the PRD's indicative
+    rkyv, since `EngineSnapshot` is already plain `serde`-derivable data and keyframing
+    isn't on the per-cycle hot path, so round-trip simplicity mattered more here than
+    zero-copy reads), `seek::SeekEngine` (`seek_to`/`resimulate`, nearest-keyframe +
+    replay or from-seed fallback, P4-F2/F3), and `replay::{run_collecting_events,
+    first_divergence}` (the event-trace diff helpers behind the replay-equivalence gate).
+    Sits below `tessera-config`/`tessera-plugin`/`tessera-cli` in the dependency
+    direction via the `SimSource` trait, which the owning crate implements with its own
+    config→registry reconstruction.
+  - Design decision (documented deviation from a literal PRD reading): "keyframe + delta
+    each cycle" is implemented as periodic keyframes **plus deterministic
+    `tick()`-replay**, not a stored per-cycle state-diff format — a real diff format would
+    force allocation/branching inside the per-cycle stage kernels for zero correctness
+    benefit, since determinism already guarantees resim reproduces the recorded run. The
+    `Event` stream is both the analytics payload and the bit-for-bit replay-equivalence
+    oracle (G4.1's gate), diffed against re-simulation rather than raw engine internals
+    (a stable columnar contract vs. implementation detail that a legitimate refactor could
+    reorder).
+  - Tested over real `Simulation`s (`crates/tessera-cli/tests/replay_equivalence.test.rs`)
+    across deterministic (dimension-order + round-robin) and adaptive/RNG-driven
+    (`OddEven` + `Random` selection) routing, plus Netrace and SynFull traffic: both
+    from-seed re-simulation and nearest-keyframe restore-and-replay reproduce a reference
+    run's event trace bit-for-bit (G4.1), and `SeekTo` via an on-disk keyframe store
+    matches a from-seed resimulation to the same cycle (G4.2).
+  - Outstanding (tracked as OUT-17, Milestones B–D): Arrow/Parquet event-stream writer +
+    SQLite run catalog, DuckDB query layer + run comparison, delta/keyframe-interval
+    tuning benchmarks and a reproducibility-bundle stub.
 - Phase 1 backfill: `tessera-config` (schema, `validate()`, Noxim traffic/routing-table
   import); a generic `Allocator` trait unifying VC allocation and both switch-allocation
   phases (round-robin/matrix/iSLIP arbiters); `Torus2D` topology with dateline VC

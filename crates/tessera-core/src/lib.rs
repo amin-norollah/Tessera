@@ -7,6 +7,7 @@
 //! crates and are injected into [`Simulation`] as trait objects.
 
 pub mod buffer;
+pub mod event;
 pub mod flit;
 pub mod ids;
 pub mod rng;
@@ -14,10 +15,14 @@ pub mod sim;
 pub mod traits;
 
 pub use buffer::BufferPool;
+pub use event::Event;
 pub use flit::{FlitArena, FlitHeader, FlitKind};
 pub use ids::{Coord, FlitId, LinkId, PacketId, PeId, PortId, RouterId, VcId};
 pub use rng::{NodeRng, RngStreams};
-pub use sim::{ActivityCounts, Metrics, SimConfig, Simulation, VcState};
+pub use sim::{
+    ActivityCounts, EngineSnapshot, Metrics, RestoreError, SimConfig, Simulation, VcState,
+    ENGINE_SNAPSHOT_VERSION,
+};
 pub use traits::{
     axis_of, AllocRequest, Allocator, Axis, Candidates, CongestionView, Delivery, GrantSet,
     PacketDesc, PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,

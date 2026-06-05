@@ -8,6 +8,7 @@ macro_rules! id_newtype {
     ($(#[$m:meta])* $name:ident, $inner:ty) => {
         $(#[$m])*
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+        #[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
         pub struct $name(pub $inner);
 
         impl $name {

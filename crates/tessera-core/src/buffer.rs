@@ -95,6 +95,54 @@ impl BufferPool {
         self.len[q] -= 1;
         Some(f)
     }
+
+    /// Plain-data copy of the pool's contents for keyframing (P4-F1).
+    pub fn snapshot(&self) -> BufferSnapshot {
+        BufferSnapshot {
+            depth: self.depth,
+            ports: self.ports,
+            vcs: self.vcs,
+            n_routers: self.n_routers,
+            slots: self.slots.clone(),
+            head: self.head.clone(),
+            len: self.len.clone(),
+        }
+    }
+
+    /// Overwrite this pool's contents from a prior [`Self::snapshot`]. Errs if
+    /// `snap`'s dimensions don't match this pool's (the caller must restore
+    /// onto a pool built with the same `(n_routers, ports, vcs, depth)`).
+    pub fn restore(&mut self, snap: BufferSnapshot) -> Result<(), String> {
+        if snap.depth != self.depth
+            || snap.ports != self.ports
+            || snap.vcs != self.vcs
+            || snap.n_routers != self.n_routers
+        {
+            return Err(format!(
+                "buffer pool dimension mismatch: snapshot is (depth={}, ports={}, vcs={}, n_routers={}), \
+                 pool is (depth={}, ports={}, vcs={}, n_routers={})",
+                snap.depth, snap.ports, snap.vcs, snap.n_routers,
+                self.depth, self.ports, self.vcs, self.n_routers,
+            ));
+        }
+        self.slots = snap.slots;
+        self.head = snap.head;
+        self.len = snap.len;
+        Ok(())
+    }
+}
+
+/// Plain-data view of a [`BufferPool`] for keyframing (P4-F1).
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
+pub struct BufferSnapshot {
+    pub depth: u16,
+    pub ports: u8,
+    pub vcs: u8,
+    pub n_routers: u32,
+    pub slots: Vec<u32>,
+    pub head: Vec<u16>,
+    pub len: Vec<u16>,
 }
 
 #[cfg(test)]

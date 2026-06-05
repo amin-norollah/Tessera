@@ -9,6 +9,7 @@ use crate::ids::{FlitId, PacketId, RouterId, VcId};
 use crate::traits::Axis;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
 pub enum FlitKind {
     Head,
     Body,
@@ -33,6 +34,7 @@ impl FlitKind {
 /// The small, cache-friendly, POD part of a flit: the only part that moves
 /// through the datapath.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "snapshot", derive(serde::Serialize, serde::Deserialize))]
 pub struct FlitHeader {
     pub packet: PacketId,
     pub kind: FlitKind,
@@ -115,5 +117,16 @@ impl FlitArena {
     /// Number of flit slots currently checked out (live + not-yet-recycled).
     pub fn live(&self) -> usize {
         self.headers.len() - self.free.len()
+    }
+
+    /// Plain-data copy of the arena's contents for keyframing (P4-F1).
+    pub fn snapshot(&self) -> (Vec<FlitHeader>, Vec<FlitId>) {
+        (self.headers.clone(), self.free.clone())
+    }
+
+    /// Overwrite the arena's contents from a prior [`Self::snapshot`].
+    pub fn restore(&mut self, headers: Vec<FlitHeader>, free: Vec<FlitId>) {
+        self.headers = headers;
+        self.free = free;
     }
 }

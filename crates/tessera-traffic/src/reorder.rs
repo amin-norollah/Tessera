@@ -79,6 +79,46 @@ impl<T> ReorderBuffer<T> {
     }
 }
 
+/// Per source: next-expected sequence number, and any out-of-order items
+/// still buffered ahead of it (`(seq, item)` pairs) — the wire shape of
+/// [`ReorderBuffer::snapshot`]/[`ReorderBuffer::restore`].
+pub type ReorderSnapshot<T> = Vec<(RouterId, u64, Vec<(u64, T)>)>;
+
+impl<T: Clone> ReorderBuffer<T> {
+    /// Plain-data view of per-source state for keyframing (P4-F1): for each
+    /// source with any recorded activity, its next-expected sequence number
+    /// and any out-of-order items still buffered ahead of it.
+    pub fn snapshot(&self) -> ReorderSnapshot<T> {
+        self.sources
+            .iter()
+            .map(|(&src, s)| {
+                let pending = s
+                    .pending
+                    .iter()
+                    .map(|(&seq, item)| (seq, item.clone()))
+                    .collect();
+                (src, s.next, pending)
+            })
+            .collect()
+    }
+
+    /// Overwrite this buffer's contents from a prior [`Self::snapshot`].
+    pub fn restore(&mut self, snap: ReorderSnapshot<T>) {
+        self.sources = snap
+            .into_iter()
+            .map(|(src, next, pending)| {
+                (
+                    src,
+                    SourceState {
+                        next,
+                        pending: pending.into_iter().collect(),
+                    },
+                )
+            })
+            .collect();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

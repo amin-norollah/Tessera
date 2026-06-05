@@ -11,3 +11,7 @@ tessera-core.workspace = true
 serde.workspace = true
 toml.workspace = true
 thiserror.workspace = true
+# Opaque byte encoding for `TrafficGenerator::snapshot`/`restore` (P4-F1
+# keyframing of Netrace/SynFull's path-dependent state); independent of
+# whatever format `tessera-record` uses for the engine keyframe itself.
+bincode.workspace = true
