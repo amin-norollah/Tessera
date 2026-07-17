@@ -24,6 +24,8 @@
 use tessera_core::{ActivityCounts, RouterId};
 use tessera_params::ParamDb;
 
+pub mod calibrate;
+
 /// Energy in joules.
 pub type Joules = f64;
 /// Power in watts.

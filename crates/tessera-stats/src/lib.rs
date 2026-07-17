@@ -5,6 +5,9 @@
 
 pub mod stream;
 
+#[cfg(feature = "parquet")]
+pub mod parquet_export;
+
 use std::fmt::Write as _;
 use std::fs;
 use std::io;

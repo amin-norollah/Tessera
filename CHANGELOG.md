@@ -19,8 +19,9 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     observable state, plus verify-mode invariant checks (flit conservation, monotonic
     counters) (P3-F15/F16).
   - `tessera-stats` — bounded-memory streaming metric time-series with a pluggable
-    `BatchSink` (Vec/CSV; Arrow/Parquet writer is the drop-in next step) and fixed-order
-    deterministic reductions (P3-F14/N2/N3).
+    `BatchSink` (Vec/CSV, plus an Arrow/Parquet `ParquetSink` behind the off-by-default
+    `parquet` cargo feature so default builds stay free of the Arrow dependency tree) and
+    fixed-order deterministic reductions (P3-F14/N2/N3, G3.4).
 
   - TEI feedback loop + RTM policy (`tessera-thermal::tei`, P3-F12/F13): each
     configurable interval (default 100k cycles) recomputes per-router power as
@@ -41,13 +42,21 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     live mesh run, count self-consistency + determinism, and diagnostics built from
     observable state (healthy run trips nothing, frozen snapshot trips the deadlock
     detector, invariant checker catches injected flit loss).
+  - calibrated mode (`tessera-power::calibrate`, P3-F10): closed-form least-squares
+    `fit_dynamic_scale` of a single energy-coefficient correction against reference
+    operating points, and `apply_dynamic_scale` which persists the fit as a renamed,
+    still-fully-cited, TOML-round-trippable profile with the calibration in its provenance.
+  - docs: [`docs/POWER_THERMAL_MODELING.md`](docs/POWER_THERMAL_MODELING.md) — the
+    native-model formulas + citations, parameter-DB, TEI loop, diagnostics, calibration,
+    and stats-export guide, with a Phase 3 requirement-coverage table.
 
   All models are behaviour-tested (V² scaling, leakage-law shapes incl. TEI inversion,
   link distance scaling, area monotonicity, analytic RC transient/steady-state, detector
-  firing on crafted cases, `O(batch)` memory over a 100k-row run). Absolute-accuracy
-  validation vs DSENT/HotSpot and the Arrow/Parquet serializer are deferred to the FFI +
-  calibrated-mode work (P3-F9/F10, gates G3.1/G3.4). Added RESEARCH_NOTES D6 (ASU PTM)
-  and D7 (ITRS/IRDS) for the concrete parameter-value provenance.
+  firing on crafted cases, `O(batch)` memory over a 100k-row run, calibration recovery,
+  Parquet round-trip). Still outstanding for Phase 3: the FFI `*-sys` crates
+  (DSENT/ORION/HotSpot/McPAT, P3-F9/F11) and the absolute-accuracy regression gate that
+  depends on them (P3-N1, G3.1). Added RESEARCH_NOTES D6 (ASU PTM) and D7 (ITRS/IRDS) for
+  the concrete parameter-value provenance.
 - Phase 1 backfill: `tessera-config` (schema, `validate()`, Noxim traffic/routing-table
   import); a generic `Allocator` trait unifying VC allocation and both switch-allocation
   phases (round-robin/matrix/iSLIP arbiters); `Torus2D` topology with dateline VC
