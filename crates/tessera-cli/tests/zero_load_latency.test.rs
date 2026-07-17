@@ -23,6 +23,7 @@ impl TrafficGenerator for OneShot {
             out.push(PacketDesc {
                 dst: self.dst,
                 size: self.size,
+                tag: 0,
             });
         }
     }

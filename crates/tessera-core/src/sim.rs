@@ -22,7 +22,7 @@ use crate::flit::{FlitArena, FlitHeader, FlitKind};
 use crate::ids::{FlitId, PacketId, PortId, RouterId, VcId};
 use crate::rng::{NodeRng, RngStreams};
 use crate::traits::{
-    axis_of, AllocRequest, Allocator, CongestionView, GrantSet, PacketDesc, RouteCtx,
+    axis_of, AllocRequest, Allocator, CongestionView, Delivery, GrantSet, PacketDesc, RouteCtx,
     RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
 };
 
@@ -589,6 +589,7 @@ impl Simulation {
                 eligible_cycle: 0,
                 dateline_crossed: false,
                 last_axis: None,
+                tag: desc.tag,
             };
             let flit = self.arena.alloc(header);
             self.pe_src[r as usize].push_back(flit.0);
@@ -877,6 +878,16 @@ impl Simulation {
             self.reserve_port[in_idx] = NONE;
             self.reserve_vc[in_idx] = NONE;
             self.hold[out_idx] = FREE;
+            self.traffic.on_deliver(
+                self.cycle,
+                Delivery {
+                    src: header.src,
+                    dst: header.dst,
+                    size: header.seq + 1,
+                    tag: header.tag,
+                    inject_cycle: header.inject_cycle,
+                },
+            );
         }
         self.arena.free(flit);
         let credit_delay = self.cfg.credit_delay as u64;

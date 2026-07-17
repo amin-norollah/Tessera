@@ -19,6 +19,6 @@ pub use ids::{Coord, FlitId, LinkId, PacketId, PeId, PortId, RouterId, VcId};
 pub use rng::{NodeRng, RngStreams};
 pub use sim::{ActivityCounts, Metrics, SimConfig, Simulation, VcState};
 pub use traits::{
-    axis_of, AllocRequest, Allocator, Axis, Candidates, CongestionView, GrantSet, PacketDesc,
-    PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
+    axis_of, AllocRequest, Allocator, Axis, Candidates, CongestionView, Delivery, GrantSet,
+    PacketDesc, PortLabel, RouteCtx, RoutingAlgorithm, SelectionPolicy, Topology, TrafficGenerator,
 };

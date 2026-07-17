@@ -42,6 +42,7 @@ impl TrafficGenerator for Transpose {
         out.push(PacketDesc {
             dst: RouterId(dst),
             size: self.packet_size,
+            tag: 0,
         });
     }
 }
@@ -101,6 +102,7 @@ impl TrafficGenerator for Hotspot {
         out.push(PacketDesc {
             dst,
             size: self.packet_size,
+            tag: 0,
         });
     }
 }

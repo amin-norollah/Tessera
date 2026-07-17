@@ -68,6 +68,10 @@ pub struct FlitHeader {
     /// it into a needless shared bottleneck and, worse, leaving no room to
     /// escalate if that later axis *also* needs to wrap.
     pub last_axis: Option<Axis>,
+    /// Copied from the originating [`crate::traits::PacketDesc::tag`]; carried
+    /// on every flit of the packet so [`crate::traits::Delivery::tag`] can
+    /// hand it back on ejection.
+    pub tag: u64,
 }
 
 /// Pooled flit storage. Ids are recycled via the free list; no per-flit heap

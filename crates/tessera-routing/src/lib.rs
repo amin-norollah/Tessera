@@ -483,7 +483,11 @@ mod tests {
             ) {
                 if cycle < 200 && rng.next_f64() < 0.2 {
                     let dst = RouterId((node.0 + 7) % 16);
-                    out.push(PacketDesc { dst, size: 4 });
+                    out.push(PacketDesc {
+                        dst,
+                        size: 4,
+                        tag: 0,
+                    });
                 }
             }
         }

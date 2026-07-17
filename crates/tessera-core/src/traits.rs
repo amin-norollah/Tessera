@@ -183,12 +183,40 @@ pub trait SelectionPolicy: Send + Sync {
 pub struct PacketDesc {
     pub dst: RouterId,
     pub size: u16,
+    /// Opaque correlation id, round-tripped unchanged into the matching
+    /// [`Delivery::tag`]: a generator that needs to recognize *which* of its
+    /// own packets was just delivered (e.g. a Netrace message id, P3.5-F1)
+    /// stamps it here; generators with no delivery-side bookkeeping leave it
+    /// `0`.
+    pub tag: u64,
+}
+
+/// One packet's arrival at its destination, handed to
+/// [`TrafficGenerator::on_deliver`] right after its tail flit is ejected.
+#[derive(Clone, Copy, Debug)]
+pub struct Delivery {
+    pub src: RouterId,
+    pub dst: RouterId,
+    pub size: u16,
+    pub tag: u64,
+    /// Cycle the packet was injected at `src` (for latency bookkeeping).
+    pub inject_cycle: u64,
 }
 
 /// Generates traffic at a PE. Called once per cycle per node while injection is
 /// enabled; pushes packet descriptors to inject this cycle.
 pub trait TrafficGenerator: Send + Sync {
     fn on_tick(&self, cycle: u64, node: RouterId, rng: &mut NodeRng, out: &mut Vec<PacketDesc>);
+
+    /// Called once per packet, at its destination, immediately after delivery.
+    /// Additive to the Phase 2 v1 freeze (default no-op, so no existing
+    /// generator needs a change): dependency-driven and closed-loop sources
+    /// (Netrace/SynFull, Phase 3.5) use it to release dependents or account
+    /// outstanding messages. Takes `&self` like `on_tick`, so any state it
+    /// updates needs interior mutability (e.g. a `Mutex`).
+    fn on_deliver(&self, cycle: u64, delivery: Delivery) {
+        let _ = (cycle, delivery);
+    }
 }
 
 /// A bid: `requester` wants `resource`. A requester may appear more than once

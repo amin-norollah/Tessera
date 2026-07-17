@@ -47,6 +47,7 @@ impl TrafficGenerator for Uniform {
         out.push(PacketDesc {
             dst: RouterId(dst),
             size: self.packet_size,
+            tag: 0,
         });
     }
 }

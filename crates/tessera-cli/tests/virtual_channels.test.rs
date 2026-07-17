@@ -58,6 +58,7 @@ impl TrafficGenerator for OneShot {
             out.push(PacketDesc {
                 dst: RouterId(1),
                 size: 4,
+                tag: 0,
             });
         }
     }
