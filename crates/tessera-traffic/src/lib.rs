@@ -1,9 +1,9 @@
 //! Traffic generators behind the [`TrafficGenerator`] contract: Phase 0/1
 //! synthetic patterns (`Uniform`, [`Hotspot`], [`Transpose`], [`Bimodal`])
 //! plus Phase 3.5 traffic realism: [`netrace::Netrace`] (dependency-driven
-//! trace replay), composable with [`closed_loop::ClosedLoop`]
-//! (outstanding-message limits) and [`reorder::ReorderBuffer`] (destination
-//! reassembly).
+//! trace replay) and [`synfull::SynFull`] (Markov-model synthetic traffic),
+//! composable with [`closed_loop::ClosedLoop`] (outstanding-message limits)
+//! and [`reorder::ReorderBuffer`] (destination reassembly).
 
 use tessera_core::{NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
@@ -12,6 +12,7 @@ mod bimodal;
 pub mod closed_loop;
 pub mod netrace;
 pub mod reorder;
+pub mod synfull;
 
 pub use adversarial::{Hotspot, Transpose};
 pub use bimodal::Bimodal;
