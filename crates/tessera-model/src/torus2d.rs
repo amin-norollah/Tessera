@@ -1,5 +1,5 @@
 //! A 2D torus: [`Mesh2D`](crate::Mesh2D) with wraparound X and Y edges. The
-//! wraparound link in each dimension is the *dateline* — dimension-order
+//! wraparound link in each dimension is the *dateline*: dimension-order
 //! routing must switch to a dedicated upper-VC-half class when it crosses one
 //! to stay deadlock-free (P1-F12); see [`Topology::is_dateline`].
 

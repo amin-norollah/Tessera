@@ -22,6 +22,15 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     `BatchSink` (Vec/CSV; Arrow/Parquet writer is the drop-in next step) and fixed-order
     deterministic reductions (P3-F14/N2/N3).
 
+  - TEI feedback loop + RTM policy (`tessera-thermal::tei`, P3-F12/F13): each
+    configurable interval (default 100k cycles) recomputes per-router power as
+    `scale·(dynamic + leakage(T))`, re-solves the thermal network, and lets a
+    `ThermalPolicy` set the next interval's per-router scale from the new
+    temperatures — closing the temperature→leakage→power→temperature ring.
+    Ships `NoThrottle` and `ThresholdThrottle`; tests show the loop converges to a
+    stable fixed point, leakage feedback lifts steady temperature above an
+    ambient-leakage estimate, and throttling demonstrably lowers steady
+    temperature under thermal stress (G3.3).
   - kernel wiring: the `Simulation` stage kernels now accumulate cheap per-router
     `ActivityCounts` (buffer read/write, crossbar, VA/SA arbitration, link flits, clock)
     and cumulative `total_hops`, and expose `activity()`/`network_activity()`/

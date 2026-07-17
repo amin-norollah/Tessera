@@ -52,7 +52,7 @@ pub fn build_sim_with(
 }
 
 /// As [`build_sim_with`], but with explicit VA/SA-phase-1/SA-phase-2 arbiters
-/// instead of the [`RoundRobin`] default — how a config selecting `matrix` or
+/// instead of the [`RoundRobin`] default: how a config selecting `matrix` or
 /// `islip` (P1-F6) would wire a run.
 // One param per Simulation::new component; same justified width as that
 // constructor.

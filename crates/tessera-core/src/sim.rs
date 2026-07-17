@@ -111,7 +111,7 @@ pub struct Metrics {
     pub latency_sum: u128,
     /// Flits ejected while the clock was inside the measurement window.
     pub ejected_flits_in_window: u64,
-    /// Cumulative inter-router hops across all flits — the network-wide movement
+    /// Cumulative inter-router hops across all flits: the network-wide movement
     /// indicator diagnostics use to tell livelock (rising) from deadlock
     /// (frozen). Equals the total number of link traversals.
     pub total_hops: u64,
@@ -348,7 +348,7 @@ impl Simulation {
 
     /// Debug/diagnostic only: credit conservation. For every real (non-local)
     /// lane, `credits + buffered-at-neighbor + in-flight-on-the-link +
-    /// pending-credit-returns` must equal `buffer_depth` — free slots,
+    /// pending-credit-returns` must equal `buffer_depth`: free slots,
     /// occupied slots, slots in transit, and slots already freed but whose
     /// credit hasn't completed its `credit_delay` return trip yet, account
     /// for the lane's entire capacity, with none leaked or double-counted by
@@ -822,7 +822,7 @@ impl Simulation {
                 let ovc = self.reserve_vc[in_idx] as u8;
 
                 // Every granted flit is read from its buffer, arbitrated (SA),
-                // and crosses the crossbar — whether ejected or forwarded.
+                // and crosses the crossbar: whether ejected or forwarded.
                 let act = &mut self.activity[r as usize];
                 act.buf_read += 1;
                 act.sa_arb += 1;

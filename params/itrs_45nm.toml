@@ -1,4 +1,4 @@
-# Tessera parameter profile — ITRS/IRDS 45 nm (P3-F7)
+# Tessera parameter profile: ITRS/IRDS 45 nm (P3-F7)
 #
 # Representative 45 nm electrical/area/thermal coefficients for the native
 # power/thermal models (INITIAL_PRD §9A). Every value carries a citation. The
@@ -111,13 +111,13 @@ notes = "Subthreshold slope ideality; representative default."
 [leakage.tei_v_inv]
 value = 0.55
 unit = "V"
-source = { label = "TEI leakage law — see RESEARCH_NOTES D5", doi_or_url = "https://irds.ieee.org/" }
+source = { label = "TEI leakage law: see RESEARCH_NOTES D5", doi_or_url = "https://irds.ieee.org/" }
 notes = "Below this supply voltage the TEI-aware law inverts the leakage-vs-temperature slope; representative modeling coefficient."
 
 [leakage.tei_coeff]
 value = 0.003
 unit = "1/K"
-source = { label = "TEI leakage law — see RESEARCH_NOTES D5", doi_or_url = "https://irds.ieee.org/" }
+source = { label = "TEI leakage law: see RESEARCH_NOTES D5", doi_or_url = "https://irds.ieee.org/" }
 notes = "TEI slope magnitude; representative modeling coefficient, calibrate per study."
 
 [area.a_buf_bit]

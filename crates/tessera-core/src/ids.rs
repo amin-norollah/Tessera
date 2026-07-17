@@ -1,6 +1,6 @@
 //! Copy index-handles and coordinates.
 //!
-//! Every entity is referenced by a small `Copy` newtype over `u32`/`u8` — an
+//! Every entity is referenced by a small `Copy` newtype over `u32`/`u8`: an
 //! index into a contiguous store, never a pointer. This is what lets SoA
 //! storage, snapshotting, and parallelism coexist (see `INITIAL_PRD` §20.2).
 

@@ -3,7 +3,7 @@
 //! Components (routing, selection, traffic) are named by string key and built
 //! through factory closures held in a [`Registry`]. Built-ins register through
 //! the same path as third-party plugins (dogfooding), so a contributor can add
-//! an algorithm by registering it under a new key — without touching the engine
+//! an algorithm by registering it under a new key: without touching the engine
 //! core. The [`conformance`] harness checks that any implementation honors its
 //! trait contract.
 //!
@@ -286,7 +286,7 @@ mod tests {
     }
 
     /// A third-party routing algorithm defined entirely outside the core, then
-    /// registered by key and validated — the Phase 2 community gate (G2.1).
+    /// registered by key and validated: the Phase 2 community gate (G2.1).
     struct YxRouting;
     impl RoutingAlgorithm for YxRouting {
         fn route(&self, c: &RouteCtx) -> Candidates {

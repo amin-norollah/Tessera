@@ -1,4 +1,4 @@
-//! `tessera` — headless Phase 0 runner. Sweeps offered load over a 2D mesh and
+//! `tessera`: headless Phase 0 runner. Sweeps offered load over a 2D mesh and
 //! prints (and optionally writes) a latency-throughput curve.
 
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ use tessera_plugin::builtin_registry;
 use tessera_stats::{write_csv, RunPoint};
 
 const USAGE: &str = "\
-tessera — Phase 0 NoC latency-throughput runner
+tessera: Phase 0 NoC latency-throughput runner
 
 USAGE:
     tessera [OPTIONS]

@@ -751,10 +751,14 @@ version = "0.0.0"
 dependencies = [
  "tessera-config",
  "tessera-core",
+ "tessera-diag",
  "tessera-model",
+ "tessera-params",
  "tessera-plugin",
+ "tessera-power",
  "tessera-routing",
  "tessera-stats",
+ "tessera-thermal",
  "tessera-traffic",
 ]
 
@@ -833,7 +837,9 @@ dependencies = [
 name = "tessera-thermal"
 version = "0.0.0"
 dependencies = [
+ "tessera-core",
  "tessera-params",
+ "tessera-power",
 ]
 
 [[package]]

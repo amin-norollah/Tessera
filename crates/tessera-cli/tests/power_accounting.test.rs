@@ -126,7 +126,7 @@ fn per_router_power_drives_the_thermal_grid() {
     assert!(temps.iter().all(|&t| t >= amb && t.is_finite()));
 
     // The native defaults put router power in the microwatt range, so the rise
-    // on top of a 45 C ambient is below f32 resolution — assert the thermal
+    // on top of a 45 C ambient is below f32 resolution: assert the thermal
     // path is live with a plainly non-trivial (mW-scale) uniform load instead.
     let mut hot = RcGrid::from_params(4, 4, &p, true);
     let load = vec![1e-3_f64; grid.num_tiles()];

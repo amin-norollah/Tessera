@@ -2,7 +2,7 @@
 //!
 //! One `splitmix64`-based stream per PE and per router, all derived from a
 //! single master seed. Stream isolation makes runs reproducible and
-//! order-independent under parallelism — unlike a single global `rand()`
+//! order-independent under parallelism: unlike a single global `rand()`
 //! (PAT-Noxim's fragile-determinism source). See `INITIAL_PRD` §20.10.
 
 const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;

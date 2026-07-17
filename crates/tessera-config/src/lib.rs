@@ -1,4 +1,4 @@
-//! `tessera-config` — the runtime config schema, pre-run `validate()` pass,
+//! `tessera-config`: the runtime config schema, pre-run `validate()` pass,
 //! and Noxim traffic/routing-table import (`docs/phases/PHASE_1_PRD.md`
 //! P1-F13–F16).
 //!

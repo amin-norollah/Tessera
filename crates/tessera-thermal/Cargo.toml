@@ -7,4 +7,6 @@ rust-version.workspace = true
 description = "Tessera native compact RC thermal network (P3-F4): HotSpot-style per-tile C*dT/dt = P - G*(T-T_amb), driven by the cited parameter DB."
 
 [dependencies]
+tessera-core.workspace = true
 tessera-params.workspace = true
+tessera-power.workspace = true

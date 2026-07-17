@@ -30,7 +30,7 @@ impl FlitKind {
     }
 }
 
-/// The small, cache-friendly, POD part of a flit — the only part that moves
+/// The small, cache-friendly, POD part of a flit: the only part that moves
 /// through the datapath.
 #[derive(Clone, Copy, Debug)]
 pub struct FlitHeader {
@@ -53,7 +53,7 @@ pub struct FlitHeader {
     /// ([`Topology::is_dateline`](crate::traits::Topology::is_dateline));
     /// from then on VC allocation restricts it to the upper VC half, the
     /// standard 2-VC dateline deadlock-avoidance scheme (P1-F12). Reset
-    /// whenever `last_axis` changes (see below) — a dimension-order router
+    /// whenever `last_axis` changes (see below): a dimension-order router
     /// traverses each axis in one contiguous run, so the escape-VC argument
     /// only needs to hold *within* one axis's run, never across axis
     /// transitions (X-phase and Y-phase links are disjoint, so restarting
@@ -62,7 +62,7 @@ pub struct FlitHeader {
     /// The axis (`Axis::X`/`Y`/`Z`) of the port this flit last moved
     /// through, or `None` before its first hop. `stage_route_compute` resets
     /// `dateline_crossed` when the newly-committed port's axis differs from
-    /// this — otherwise a dateline crossing on one axis (e.g. wrapping X)
+    /// this: otherwise a dateline crossing on one axis (e.g. wrapping X)
     /// would incorrectly keep restricting an unrelated later axis's travel
     /// (e.g. plain, non-wrapping Y movement) to the upper VC half, turning
     /// it into a needless shared bottleneck and, worse, leaving no room to

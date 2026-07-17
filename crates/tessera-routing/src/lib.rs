@@ -114,8 +114,8 @@ fn shorter_ring_plus(here: u16, dst: u16, size: u16) -> Option<bool> {
 
 /// Dimension-order routing on a 2D torus: each dimension wraps through the
 /// dateline whenever that is the shorter path, exhausting X before Y. The
-/// abstract [`Topology`] trait has no notion of ring size, so — unlike the
-/// mesh routers above, which derive everything from `ctx.topo` — this needs
+/// abstract [`Topology`] trait has no notion of ring size, so: unlike the
+/// mesh routers above, which derive everything from `ctx.topo`: this needs
 /// the torus's actual width/height at construction time.
 pub struct TorusDimensionOrderXy {
     width: u16,
@@ -228,10 +228,10 @@ fn turn_route(ctx: &RouteCtx, model: TurnModel) -> Candidates {
         // preference: these turn models are safe under arbitrary selection
         // only because the deferrable direction is never actually offered as
         // a free choice against the must-go-now one (a selection policy that
-        // ignores priority — buffer-level, round-robin, random — would
+        // ignores priority: buffer-level, round-robin, random: would
         // sometimes pick the deferrable candidate and strand the mandatory
         // turn later, deadlocking). Only a genuine tie (both candidates
-        // equally preferred — e.g. west-first doesn't care which of two
+        // equally preferred: e.g. west-first doesn't care which of two
         // *unrestricted* directions comes first) is left as a real choice.
         if priority(model, chosen[0]) < priority(model, chosen[1]) {
             c = 1;
@@ -304,7 +304,7 @@ fn odd_even_turn_allowed(here_x: u16, from: Option<PortLabel>, to: PortLabel) ->
 /// Moving along Y never changes the column that gates the eventual X turn,
 /// so that side needs no lookahead (`here.x` already is the column the X
 /// turn will happen at); moving along X does change the column, so that
-/// side must check legality at `dst.x` — wherever the X axis will actually
+/// side must check legality at `dst.x`: wherever the X axis will actually
 /// finish, not just one step ahead.
 fn odd_even_offer(here: Coord, dst: Coord, from: Option<PortLabel>, to: PortLabel) -> bool {
     use PortLabel::*;
@@ -326,7 +326,7 @@ fn odd_even_offer(here: Coord, dst: Coord, from: Option<PortLabel>, to: PortLabe
 
 /// Odd-even turn-model routing (Chiu 2000). More adaptive than a fixed-
 /// priority turn model (west-first et al.): both candidates, when both are
-/// offered, are a genuine tie — safe for any [`SelectionPolicy`] to pick
+/// offered, are a genuine tie: safe for any [`SelectionPolicy`] to pick
 /// between, unlike the mandatory-first turns above.
 pub struct OddEven;
 
@@ -351,7 +351,7 @@ impl RoutingAlgorithm for OddEven {
         }
         if cands.is_empty() {
             // Reachable only via a history no legal multi-hop path produces
-            // (see `turn_route`'s equivalent fallback) — `odd_even_offer`'s
+            // (see `turn_route`'s equivalent fallback): `odd_even_offer`'s
             // safety analysis guarantees a real run never empties this set.
             cands.push(label_to_port(ctx, dirs[0]));
         }

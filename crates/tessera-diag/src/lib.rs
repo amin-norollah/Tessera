@@ -1,4 +1,4 @@
-//! `tessera-diag` — network-health diagnostics (P3-F15/F16).
+//! `tessera-diag`: network-health diagnostics (P3-F15/F16).
 //!
 //! Detectors for the four classic NoC pathologies, plus invariant checks, run
 //! over **observable state only** (the read frame): they never touch the
@@ -9,13 +9,13 @@
 //! interval) and emits structured [`DiagEvent`]s carrying a [`DiagKind`], the
 //! [`Location`], and the cycle it fired:
 //!
-//! - [`DeadlockDetector`] — no delivery **and no movement** for N cycles while
+//! - [`DeadlockDetector`]: no delivery **and no movement** for N cycles while
 //!   flits are in flight (cyclic wait / no-progress).
-//! - [`LivelockDetector`] — no delivery but flits **keep moving** (hops rising)
+//! - [`LivelockDetector`]: no delivery but flits **keep moving** (hops rising)
 //!   for N cycles: packets circulating without being delivered.
-//! - [`CongestionDetector`] — a router's buffer occupancy stays saturated for N
+//! - [`CongestionDetector`]: a router's buffer occupancy stays saturated for N
 //!   cycles (a hotspot).
-//! - [`StarvationDetector`] — a flow has pending demand but is never granted for
+//! - [`StarvationDetector`]: a flow has pending demand but is never granted for
 //!   N cycles.
 //!
 //! [`InvariantChecker`] provides the "verify mode" checks (P3-F16): flit
@@ -30,7 +30,7 @@ pub struct HealthSample {
     pub cycle: u64,
     /// Cumulative flits delivered (ejected) so far.
     pub delivered_flits: u64,
-    /// Cumulative hop count across all flits — the network-wide movement
+    /// Cumulative hop count across all flits: the network-wide movement
     /// indicator that separates livelock (rising) from deadlock (frozen).
     pub total_hops: u64,
     /// Cumulative flits injected so far.
@@ -338,7 +338,7 @@ impl Detector for StarvationDetector {
 /// A broken invariant found in "verify mode" (P3-F16).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Violation {
-    /// `injected != delivered + dropped + in_flight` — a flit was lost or
+    /// `injected != delivered + dropped + in_flight`: a flit was lost or
     /// conjured.
     FlitConservation {
         cycle: u64,

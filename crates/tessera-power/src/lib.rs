@@ -1,4 +1,4 @@
-//! `tessera-power` — native, transparent power & area models (P3-F1/F2/F3/F5).
+//! `tessera-power`: native, transparent power & area models (P3-F1/F2/F3/F5).
 //!
 //! These are Tessera's own Rust formulas, driven entirely by the cited
 //! [`ParamDb`] (INITIAL_PRD §9A "native analytical" fidelity mode): fast,
@@ -9,7 +9,7 @@
 //! # What is modelled here
 //! - **Dynamic energy** (P3-F1): `E = α·C·V²` charged per datapath [`Activity`].
 //! - **Leakage** (P3-F2): `P_leak = I_leak(T,V)·V` under two selectable
-//!   [`LeakageLaw`]s — classic superlinear subthreshold and TEI-aware.
+//!   [`LeakageLaw`]s: classic superlinear subthreshold and TEI-aware.
 //! - **Link energy** (P3-F3): distance-dependent wire + repeater energy.
 //! - **Area** (P3-F5): router area from buffer/crossbar/control coefficients.
 //!
@@ -142,7 +142,7 @@ impl NativePowerModel {
 }
 
 /// Dynamic energy attributed to each router subsystem over some interval, in
-/// joules — the output of [`NativePowerModel::energy_from_counts`].
+/// joules: the output of [`NativePowerModel::energy_from_counts`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct EnergyBreakdown {
     /// Buffer read + write energy.
@@ -364,7 +364,7 @@ mod tests {
         p.electrical.voltage.value = p.leakage.tei_v_inv.value + 0.2;
         assert!(m.leakage_power(R0, 100.0, &p) > m.leakage_power(R0, 25.0, &p));
 
-        // Below V_inv: the slope inverts — hotter is *less* leaky (D5).
+        // Below V_inv: the slope inverts: hotter is *less* leaky (D5).
         p.electrical.voltage.value = p.leakage.tei_v_inv.value - 0.2;
         assert!(m.leakage_power(R0, 100.0, &p) < m.leakage_power(R0, 25.0, &p));
     }

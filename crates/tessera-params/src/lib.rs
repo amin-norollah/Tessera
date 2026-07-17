@@ -1,4 +1,4 @@
-//! `tessera-params` — the cited parameter database (P3-F6/F7/F8).
+//! `tessera-params`: the cited parameter database (P3-F6/F7/F8).
 //!
 //! Power, area, and thermal coefficients are **not** hard-coded in the models.
 //! They live in versioned, human-editable TOML profiles where **every factor
@@ -12,7 +12,7 @@
 //!
 //! # Provenance discipline
 //! Each [`Param`] requires a [`Citation`]; a param missing one fails to parse.
-//! [`ParamDb::validate`] additionally enforces a [`Strictness`] policy — in
+//! [`ParamDb::validate`] additionally enforces a [`Strictness`] policy: in
 //! [`Strictness::Strict`] every citation must also carry a resolvable
 //! `doi_or_url` (P3-F6, rejecting uncited/unsourced overrides).
 
@@ -119,7 +119,7 @@ pub struct LeakageParams {
     pub i_leak0: Param<f64>,
     /// Reference temperature the coefficients are pinned to (°C).
     pub t_ref_c: Param<f64>,
-    /// Threshold voltage `Vth` (V) — drives the subthreshold temperature form.
+    /// Threshold voltage `Vth` (V): drives the subthreshold temperature form.
     pub vth: Param<f64>,
     /// Subthreshold ideality factor `η` (dimensionless).
     pub eta: Param<f64>,
@@ -295,7 +295,7 @@ impl ParamDb {
         let mut s = String::new();
         let _ = writeln!(
             s,
-            "# Parameter provenance — profile '{}' ({} nm)",
+            "# Parameter provenance: profile '{}' ({} nm)",
             self.profile, self.node_nm
         );
         for (name, p) in self.each_named_param() {
@@ -305,7 +305,7 @@ impl ParamDb {
             };
             let _ = writeln!(
                 s,
-                "{name} = {} {} [{} nm] — {src}",
+                "{name} = {} {} [{} nm]: {src}",
                 p.value, p.unit, p.node_nm
             );
         }

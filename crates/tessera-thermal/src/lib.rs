@@ -1,4 +1,4 @@
-//! `tessera-thermal` — native compact RC thermal network (P3-F4).
+//! `tessera-thermal`: native compact RC thermal network (P3-F4).
 //!
 //! A HotSpot-style (D4) per-tile lumped model solving
 //! `C·dT/dt = P − G_vert·(T − T_amb) − Σ_neighbours G_lat·(T − T_j)`
@@ -25,6 +25,8 @@
 //! stable under a large step.
 
 use tessera_params::ParamDb;
+
+pub mod tei;
 
 /// Power in watts.
 pub type Watts = f64;
@@ -74,7 +76,7 @@ pub struct RcGrid {
 }
 
 impl RcGrid {
-    /// Build a grid directly from explicit lumped R/C values — used by tests and
+    /// Build a grid directly from explicit lumped R/C values: used by tests and
     /// callers that already have calibrated coefficients.
     ///
     /// `cap` is J/K per tile, `g_vert = 1/R_conv` in W/K, `g_lat` the lateral
@@ -95,9 +97,9 @@ impl RcGrid {
     }
 
     /// Build a grid from the cited parameter DB (P3-F4). Derives:
-    /// - `C = ρ·c_p·(A_tile·t_die)` — tile heat capacity,
-    /// - `G_vert = 1/R_conv` — tile-to-ambient conductance,
-    /// - `G_lat = k·t_die` — lateral conductance across the shared tile face
+    /// - `C = ρ·c_p·(A_tile·t_die)`: tile heat capacity,
+    /// - `G_vert = 1/R_conv`: tile-to-ambient conductance,
+    /// - `G_lat = k·t_die`: lateral conductance across the shared tile face
     ///   (the tile-edge length cancels for square tiles: `A_face/pitch =
     ///   (t_die·edge)/edge = t_die`).
     ///

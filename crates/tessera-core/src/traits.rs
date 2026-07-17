@@ -6,7 +6,7 @@
 //!
 //! **Plugin API v1 (frozen at Phase 2, `tessera_plugin::PLUGIN_API_VERSION`):**
 //! [`RoutingAlgorithm`], [`SelectionPolicy`], and [`TrafficGenerator`] are
-//! frozen — additive changes only within the 1.x line. Each documents the
+//! frozen: additive changes only within the 1.x line. Each documents the
 //! invariants a conforming implementation must uphold (see
 //! `tessera_plugin::conformance`). The `Allocator` and `StatisticsCollector`
 //! contracts join the freeze once their engine implementations land.
@@ -150,7 +150,7 @@ pub trait RoutingAlgorithm: Send + Sync {
     }
 }
 
-/// Read-only per-port congestion state a [`SelectionPolicy`] may consult —
+/// Read-only per-port congestion state a [`SelectionPolicy`] may consult:
 /// backed by the router's live credit state, not a snapshot copy.
 pub trait CongestionView {
     /// Total free downstream buffer slots (summed across VCs) on output
@@ -199,7 +199,7 @@ pub trait TrafficGenerator: Send + Sync {
 /// Ids are flat indices whose meaning is entirely the caller's (e.g.
 /// `port*vcs + vc`); an [`Allocator`] never interprets them, only compares
 /// and orders them. **Ids must stay stable across cycles** for round-robin/
-/// iSLIP fairness pointers to mean anything — reassigning what id N refers to
+/// iSLIP fairness pointers to mean anything: reassigning what id N refers to
 /// from one cycle to the next defeats the fairness discipline silently.
 #[derive(Clone, Copy, Debug)]
 pub struct AllocRequest {
@@ -260,7 +260,7 @@ impl GrantSet {
     }
 }
 
-/// Bipartite matching between requesters and resources — the shared
+/// Bipartite matching between requesters and resources: the shared
 /// primitive behind VC allocation and both phases of switch allocation
 /// (`INITIAL_PRD.md` §20.7: "used for VA and SA"). Concrete arbiters
 /// (round-robin, matrix, iSLIP) live in `tessera-routing`.

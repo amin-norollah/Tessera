@@ -4,7 +4,7 @@
 use tessera_core::{NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
 /// Transpose traffic on a square `side`x`side` mesh: node `(x, y)` sends to
-/// `(y, x)`. A classic adversarial pattern — it concentrates load on
+/// `(y, x)`. A classic adversarial pattern: it concentrates load on
 /// diagonal-crossing links in a way uniform traffic never does, so it's
 /// useful for telling adaptive/turn-model routing apart from plain DOR.
 pub struct Transpose {

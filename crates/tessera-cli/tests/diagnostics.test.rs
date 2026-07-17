@@ -47,7 +47,7 @@ fn healthy_run_trips_no_detector_and_conserves_flits() {
 
     for _ in 0..6000 {
         sim.tick();
-        if sim.cycle % 100 == 0 {
+        if sim.cycle.is_multiple_of(100) {
             let s = sample(&sim);
             assert!(
                 deadlock.observe(&s).is_empty(),
@@ -102,7 +102,7 @@ fn invariant_checker_catches_an_injected_flit_loss() {
 #[test]
 fn deadlock_detector_fires_on_a_frozen_network() {
     // Load the network, stop injecting, then feed repeated no-progress
-    // snapshots — a stand-in for a hung network with flits stuck in flight.
+    // snapshots: a stand-in for a hung network with flits stuck in flight.
     let mut sim = build_sim(4, 4, cfg(9), 0.3);
     sim.set_injecting(true);
     for _ in 0..500 {

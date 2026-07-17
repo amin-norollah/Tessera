@@ -1,5 +1,5 @@
 //! Arbiters behind the [`Allocator`] contract, shared by VC allocation (VA)
-//! and both switch-allocation phases (SA) — one bipartite-matching primitive
+//! and both switch-allocation phases (SA): one bipartite-matching primitive
 //! serves all three (P1-F6). Each keeps its fairness pointers in flat `Vec`s
 //! reused across calls (grown once to the largest id seen, then stable), so
 //! steady-state arbitration allocates no memory.
@@ -76,11 +76,11 @@ impl Allocator for RoundRobin {
 /// A matrix-style arbiter: each resource keeps a pairwise priority relation
 /// over requesters. The requester that beats every other current bidder for
 /// a resource wins it; the winner then loses priority (to every bidder it
-/// just beat) for next time, so it cycles to the back of the queue — the
+/// just beat) for next time, so it cycles to the back of the queue: the
 /// same "yield priority to whoever you just beat" rule as the classic NxN
 /// switch-allocator matrix arbiter, generalized to the variable-sized
 /// requester/resource pools VA also uses. Ties (no established priority
-/// either way — e.g. on the first contention between a pair) break toward
+/// either way: e.g. on the first contention between a pair) break toward
 /// the lower id, so the result stays deterministic from a cold start.
 #[derive(Default)]
 pub struct Matrix {
@@ -148,7 +148,7 @@ impl Allocator for Matrix {
 /// unmatched resources grant to their nearest-after-pointer unmatched bidder
 /// (as [`RoundRobin`]); each requester that received a grant accepts its
 /// nearest-after-*its own* pointer offer. Grant/accept pointers advance only
-/// on the **first** iteration's matches (the standard iSLIP rule — later
+/// on the **first** iteration's matches (the standard iSLIP rule: later
 /// iterations mop up leftover contention without perturbing next cycle's
 /// fairness). `iters` bounds how many rounds run per `allocate` call.
 pub struct ISlip {

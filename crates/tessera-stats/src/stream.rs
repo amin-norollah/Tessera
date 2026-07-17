@@ -154,7 +154,7 @@ pub fn mean(values: &[f64]) -> f64 {
     }
 }
 
-/// An in-memory sink that keeps every row — for tests and small runs.
+/// An in-memory sink that keeps every row: for tests and small runs.
 #[derive(Default)]
 pub struct VecSink {
     pub rows: Vec<MetricRow>,

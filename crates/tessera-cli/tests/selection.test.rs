@@ -3,11 +3,11 @@
 //! `allocators.test.rs`'s treatment of the `Allocator` family.
 //!
 //! Exercised against both a partial turn model (west-first, which has a
-//! *mandatory* direction whenever one is pending — `turn_route` must not
+//! *mandatory* direction whenever one is pending: `turn_route` must not
 //! offer its deferrable direction as a free choice, or a congestion-seeking
 //! policy like buffer-level will happily defer it forever and deadlock the
 //! network) and odd-even (whose two candidates, when both legal, are a
-//! genuine tie — free choice between them is safe).
+//! genuine tie: free choice between them is safe).
 
 use tessera_core::{RoutingAlgorithm, SelectionPolicy, SimConfig, Simulation};
 use tessera_model::Mesh2D;

@@ -1,5 +1,5 @@
 //! No-flit-loss / full drain: after injection stops, the network drains
-//! completely and every injected packet was ejected — no flit is lost or
+//! completely and every injected packet was ejected: no flit is lost or
 //! stranded. Checked on both the single-VC and multi-VC kernels
 //! (P0 exit gate; G1.5 for multiple VCs).
 

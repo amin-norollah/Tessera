@@ -3,9 +3,9 @@
 //! across real runs for several routing algorithms.
 //!
 //! The wormhole invariant (a packet's flits never interleave with another
-//! packet's on a shared VC) is enforced structurally by construction — a VC
+//! packet's on a shared VC) is enforced structurally by construction: a VC
 //! is granted to exactly one holder at a time (`Simulation`'s `hold` array;
-//! `stage_vc_alloc` only ever assigns a `FREE` slot) — and empirically by
+//! `stage_vc_alloc` only ever assigns a `FREE` slot): and empirically by
 //! every no-flit-loss assertion across this test suite, which a genuine
 //! interleaving bug would corrupt. A dedicated per-packet delivery-order
 //! trace would need new introspection API this backfill doesn't add; noted

@@ -1,6 +1,6 @@
 //! Analytical / theoretical validation, substituting for G1.1's literal
 //! BookSim/Noxim differential comparison (neither tool is available in this
-//! environment — see `docs/phases/PHASE_1_PRD.md` for the documented
+//! environment: see `docs/phases/PHASE_1_PRD.md` for the documented
 //! rationale). Each check compares simulated behavior against a closed-form
 //! bound or a theory-predicted ordering, not a fitted/eyeballed number.
 
@@ -48,7 +48,7 @@ fn accepted_flit_rate(routing: Box<dyn RoutingAlgorithm>, rate: f64) -> f64 {
 /// directions, so one direction's flow can't exceed `height` flits/cycle:
 /// `0.25 * accepted_flit_rate * nodes <= height`, i.e.
 /// `accepted_flit_rate <= 4 / width`. This is a hard physical ceiling
-/// (capacity), not a fitted constant — actual saturation throughput sits
+/// (capacity), not a fitted constant: actual saturation throughput sits
 /// well below it because DOR doesn't perfectly balance load across the cut.
 #[test]
 fn saturation_throughput_stays_within_the_bisection_bandwidth_bound() {
@@ -74,19 +74,19 @@ fn saturation_throughput_stays_within_the_bisection_bandwidth_bound() {
     let bound = 4.0 / p.width as f64;
     assert!(
         point.accepted_flit_rate <= bound,
-        "accepted {} exceeds the bisection-bandwidth ceiling {bound} — physically impossible, so this would mean a metrics bug",
+        "accepted {} exceeds the bisection-bandwidth ceiling {bound}: physically impossible, so this would mean a metrics bug",
         point.accepted_flit_rate
     );
     assert!(
         point.accepted_flit_rate >= bound * 0.3,
-        "accepted {} is suspiciously far below the {bound} ceiling — possible throughput regression",
+        "accepted {} is suspiciously far below the {bound} ceiling: possible throughput regression",
         point.accepted_flit_rate
     );
 }
 
 /// G1.1 substitute, part 2: odd-even's genuine two-direction adaptivity
 /// should beat plain dimension-order routing under an adversarial
-/// (non-uniform) pattern — this is the theoretical payoff adaptive routing
+/// (non-uniform) pattern: this is the theoretical payoff adaptive routing
 /// is supposed to deliver, per `docs/RESEARCH_NOTES.md`'s routing/selection
 /// sources. Transpose traffic (node `(x,y)` -> `(y,x)`) is the standard
 /// adversarial pattern for exactly this comparison (INITIAL_PRD §20.8,

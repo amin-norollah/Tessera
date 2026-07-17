@@ -2,7 +2,7 @@
 # cross-platform (Windows/Linux) checkouts consistent.
 * text=auto eol=lf
 
-# Binary assets — never normalize.
+# Binary assets: never normalize.
 *.png binary
 *.jpg binary
 *.jpeg binary

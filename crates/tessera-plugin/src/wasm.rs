@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn sandbox_rejects_modules_that_import_host_functions() {
         // A module requesting an import gets none (empty import set) and fails
-        // to instantiate — it cannot reach the host.
+        // to instantiate: it cannot reach the host.
         let evil = r#"
             (module
               (import "env" "exfiltrate" (func))

@@ -2,7 +2,7 @@
 //! typically imported from a legacy Noxim routing table
 //! (`tessera_config::parse_routing_table`) or a proven-acyclic scheme
 //! (up*/down* trees, a spanning tree over an irregular topology). This is
-//! *table-based*, per-hop routing — each router independently looks up its
+//! *table-based*, per-hop routing: each router independently looks up its
 //! own next hop. It is not *source* routing (the whole path fixed once at
 //! injection and carried in the packet); that would need a `FlitHeader`
 //! change to carry the remaining path and is a follow-up, not implemented
@@ -24,7 +24,7 @@ pub struct TableRouting {
 
 impl TableRouting {
     /// Build from `(here, dst, port)` rows. Panics if a row references a
-    /// router `>= n` — a one-time construction-time check, not a per-lookup
+    /// router `>= n`: a one-time construction-time check, not a per-lookup
     /// cost.
     pub fn new(n: u32, rows: impl IntoIterator<Item = (RouterId, RouterId, PortId)>) -> Self {
         let mut port = vec![NO_ENTRY; n as usize * n as usize];
@@ -105,7 +105,7 @@ mod tests {
     }
 
     /// A table built by copying `DimensionOrderXy`'s own decisions must
-    /// behave identically to XY — the mechanism (lookup vs. computed rule)
+    /// behave identically to XY: the mechanism (lookup vs. computed rule)
     /// shouldn't matter to the routing outcome.
     #[test]
     fn a_table_copying_xy_matches_xy_everywhere() {

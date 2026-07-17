@@ -1,6 +1,6 @@
 //! Phase 2 community gate (G2.1): a routing algorithm defined entirely outside
 //! the engine core is registered by string key and runs in a real simulation,
-//! delivering all traffic — without any change to the core, model, or kernel.
+//! delivering all traffic: without any change to the core, model, or kernel.
 
 use tessera_cli::build_sim_with;
 use tessera_core::{Candidates, PortLabel, RouteCtx, RoutingAlgorithm, SimConfig};

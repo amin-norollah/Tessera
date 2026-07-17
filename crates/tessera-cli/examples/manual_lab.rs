@@ -1,7 +1,7 @@
 //! Manual exploration lab for the Phase 1 features the `tessera` CLI doesn't
 //! expose flags for yet (torus, table routing, bimodal traffic, selection
 //! policies, allocators, config validation, Noxim import). Edit the knobs in
-//! each section and re-run; nothing here is a regression test — those live
+//! each section and re-run; nothing here is a regression test: those live
 //! under `crates/tessera-cli/tests/`.
 //!
 //! Run with: cargo run --example manual_lab -p tessera-cli
@@ -81,13 +81,13 @@ fn main() {
         4000,
     );
     // KNOWN BUG (found via this example, not yet fixed): at rate=0.15 this
-    // stalls hard — the `dateline_crossed` flag on a flit never resets when
+    // stalls hard: the `dateline_crossed` flag on a flit never resets when
     // dimension-order routing moves from its X-phase into its Y-phase, so a
     // packet that wrapped the X-dateline is incorrectly forced onto the
     // upper VC half for its *entire* remaining journey, including plain
     // (non-wrapping) Y movement. Under real load that turns the single
     // upper-half VC into a shared bottleneck, and a packet that also needs
-    // to wrap the Y-dateline has nowhere left to escalate — reproducing a
+    // to wrap the Y-dateline has nowhere left to escalate: reproducing a
     // real deadlock. 0.05 stays under the threshold where this manifests
     // (empirically: fine at <=0.05, stalls at >=0.08 on an 8x8 torus).
     let torus_cfg = SimConfig {

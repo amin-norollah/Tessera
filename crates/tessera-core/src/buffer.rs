@@ -2,7 +2,7 @@
 //!
 //! One flat ring-buffer pool for the whole network, logically indexed
 //! `[router][port][vc][slot]` and flattened to 1-D. Depth is a runtime value,
-//! not a compile-time constant, and every operation is O(1) — replacing
+//! not a compile-time constant, and every operation is O(1): replacing
 //! PAT-Noxim's per-object deques and linear scans.
 
 use crate::ids::FlitId;
