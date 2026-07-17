@@ -1,0 +1,17 @@
+[package]
+name = "dsent-sys"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "FFI seam for DSENT electrical power/area (P3-F9, primary reference); degraded when the DSENT library is not linked."
+
+[dependencies]
+tessera-core.workspace = true
+tessera-params.workspace = true
+tessera-power.workspace = true
+
+[features]
+# Opt-in: bind the external DSENT C++ library. Off by default so the workspace
+# builds without the library present (the model then reports degraded).
+link = []

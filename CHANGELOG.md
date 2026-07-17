@@ -46,6 +46,15 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     `fit_dynamic_scale` of a single energy-coefficient correction against reference
     operating points, and `apply_dynamic_scale` which persists the fit as a renamed,
     still-fully-cited, TOML-round-trippable profile with the calibration in its provenance.
+  - FFI seam crates (P3-F9/F11): `dsent-sys`, `orion-sys`, `mcpat-sys` (power/area) and
+    `hotspot-sys` (thermal) implement the same `PowerModel`/`AreaModel`/`ThermalModel`
+    traits as the native models. The external C/C++ libraries bind behind an opt-in
+    `link` feature; without them (the default) each reports **degraded** via `try_new`
+    so runs fall back to native. McPAT additionally exposes `MCPAT_WIRING_VERIFIED = false`
+    and stays degraded until its wiring is audited against source (P3-F11). Real bindings
+    are pending the libraries (trait bodies are `todo!`); the seam is compile-checked.
+    (Grouped as top-level `crates/*-sys` rather than `crates/tessera-ffi/*` from
+    INITIAL_PRD §20.1, to fit the workspace member glob.)
   - docs: [`docs/POWER_THERMAL_MODELING.md`](docs/POWER_THERMAL_MODELING.md) — the
     native-model formulas + citations, parameter-DB, TEI loop, diagnostics, calibration,
     and stats-export guide, with a Phase 3 requirement-coverage table.

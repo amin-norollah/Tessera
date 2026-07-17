@@ -1,0 +1,14 @@
+[package]
+name = "hotspot-sys"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "FFI seam for HotSpot 6.0 RC thermal solver (P3-F9); degraded when the HotSpot library is not linked."
+
+[dependencies]
+tessera-thermal.workspace = true
+
+[features]
+# Opt-in: bind the external HotSpot 6.0 library. Off by default.
+link = []
