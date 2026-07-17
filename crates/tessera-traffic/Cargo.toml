@@ -4,7 +4,10 @@ version = "0.0.0"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Tessera traffic generators (Phase 0: uniform random with Bernoulli injection)."
+description = "Tessera traffic generators: synthetic patterns plus Netrace/SynFull trace-realism import (Phase 3.5)."
 
 [dependencies]
 tessera-core.workspace = true
+serde.workspace = true
+toml.workspace = true
+thiserror.workspace = true
