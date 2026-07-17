@@ -12,6 +12,7 @@ mod bimodal;
 pub mod closed_loop;
 pub mod netrace;
 pub mod reorder;
+pub mod summary;
 pub mod synfull;
 
 pub use adversarial::{Hotspot, Transpose};
