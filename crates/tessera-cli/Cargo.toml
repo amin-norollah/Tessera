@@ -81,6 +81,10 @@ name = "selection"
 path = "tests/selection.test.rs"
 
 [[test]]
+name = "traffic_realism"
+path = "tests/traffic_realism.test.rs"
+
+[[test]]
 name = "virtual_channels"
 path = "tests/virtual_channels.test.rs"
 
