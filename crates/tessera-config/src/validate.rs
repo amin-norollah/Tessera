@@ -32,6 +32,17 @@ pub enum ConfigError {
     )]
     DataRatioOutOfRange(f64),
 
+    #[error("traffic.kind = netrace: path must not be empty")]
+    NetracePathEmpty,
+
+    #[error(
+        "traffic.kind = netrace: region [{start}, {end}) is empty or inverted; start must be < end"
+    )]
+    NetraceRegionInvalid { start: u64, end: u64 },
+
+    #[error("traffic.kind = synfull: model_path must not be empty")]
+    SynFullModelPathEmpty,
+
     #[error(
         "router.routing = '{routing}' is fully adaptive, which needs router.vc_classes with \
          escape >= 1 and adaptive >= 1 (an escape-VC DOR fallback keeps it deadlock-free); \
@@ -88,9 +99,30 @@ pub fn validate(cfg: &SimConfigFile) -> Result<(), Vec<ConfigError>> {
         errors.push(ConfigError::TopologyTooSmall { width, height });
     }
 
-    if let crate::schema::TrafficKind::Uniform { injection_rate } = cfg.traffic.kind {
-        if !(0.0..=1.0).contains(&injection_rate) {
-            errors.push(ConfigError::InjectionRateOutOfRange(injection_rate));
+    match &cfg.traffic.kind {
+        crate::schema::TrafficKind::Uniform { injection_rate } => {
+            if !(0.0..=1.0).contains(injection_rate) {
+                errors.push(ConfigError::InjectionRateOutOfRange(*injection_rate));
+            }
+        }
+        crate::schema::TrafficKind::TableBased { .. } => {}
+        crate::schema::TrafficKind::Netrace { path, region, .. } => {
+            if path.trim().is_empty() {
+                errors.push(ConfigError::NetracePathEmpty);
+            }
+            if let Some((start, end)) = region {
+                if start >= end {
+                    errors.push(ConfigError::NetraceRegionInvalid {
+                        start: *start,
+                        end: *end,
+                    });
+                }
+            }
+        }
+        crate::schema::TrafficKind::SynFull { model_path } => {
+            if model_path.trim().is_empty() {
+                errors.push(ConfigError::SynFullModelPathEmpty);
+            }
         }
     }
 
@@ -209,6 +241,54 @@ mod tests {
                 width: 1,
                 height: 4
             }));
+    }
+
+    #[test]
+    fn rejects_empty_netrace_path() {
+        let mut cfg = good();
+        cfg.traffic.kind = crate::schema::TrafficKind::Netrace {
+            path: String::new(),
+            region: None,
+            node_mapping: crate::schema::NodeMappingCfg::Identity,
+        };
+        assert!(validate(&cfg)
+            .unwrap_err()
+            .contains(&ConfigError::NetracePathEmpty));
+    }
+
+    #[test]
+    fn rejects_inverted_netrace_region() {
+        let mut cfg = good();
+        cfg.traffic.kind = crate::schema::TrafficKind::Netrace {
+            path: "trace.tni".to_string(),
+            region: Some((10, 5)),
+            node_mapping: crate::schema::NodeMappingCfg::Identity,
+        };
+        assert!(validate(&cfg)
+            .unwrap_err()
+            .contains(&ConfigError::NetraceRegionInvalid { start: 10, end: 5 }));
+    }
+
+    #[test]
+    fn accepts_well_formed_netrace_config() {
+        let mut cfg = good();
+        cfg.traffic.kind = crate::schema::TrafficKind::Netrace {
+            path: "trace.tni".to_string(),
+            region: Some((0, 100)),
+            node_mapping: crate::schema::NodeMappingCfg::Modulo,
+        };
+        assert_eq!(validate(&cfg), Ok(()));
+    }
+
+    #[test]
+    fn rejects_empty_synfull_model_path() {
+        let mut cfg = good();
+        cfg.traffic.kind = crate::schema::TrafficKind::SynFull {
+            model_path: String::new(),
+        };
+        assert!(validate(&cfg)
+            .unwrap_err()
+            .contains(&ConfigError::SynFullModelPathEmpty));
     }
 
     #[test]

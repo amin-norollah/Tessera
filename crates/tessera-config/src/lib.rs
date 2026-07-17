@@ -17,8 +17,8 @@ pub use noxim::{
     parse_routing_table, parse_traffic_table, NoximImportError, NoximRoutingRow, NoximTrafficRow,
 };
 pub use schema::{
-    AllocatorCfg, PacketSizeCfg, RouterCfg, SimConfigFile, TopologyCfg, TrafficCfg, TrafficKind,
-    VcClassCfg, CURRENT_VERSION,
+    AllocatorCfg, NodeMappingCfg, PacketSizeCfg, RouterCfg, SimConfigFile, TopologyCfg, TrafficCfg,
+    TrafficKind, VcClassCfg, CURRENT_VERSION,
 };
 pub use validate::{validate, ConfigError};
 
@@ -68,5 +68,30 @@ mod tests {
         let text = toml::to_string(&cfg).expect("serializes");
         let reparsed: SimConfigFile = toml::from_str(&text).expect("reparses");
         assert_eq!(cfg, reparsed);
+    }
+
+    #[test]
+    fn round_trips_netrace_and_synfull_traffic_kinds() {
+        for kind in [
+            TrafficKind::Netrace {
+                path: "trace.tni".to_string(),
+                region: Some((0, 1000)),
+                node_mapping: NodeMappingCfg::Modulo,
+            },
+            TrafficKind::SynFull {
+                model_path: "model.toml".to_string(),
+            },
+        ] {
+            let cfg = SimConfigFile {
+                traffic: TrafficCfg {
+                    kind,
+                    packet_size: PacketSizeCfg::Fixed { size: 4 },
+                },
+                ..SimConfigFile::default()
+            };
+            let text = toml::to_string(&cfg).expect("serializes");
+            let reparsed: SimConfigFile = toml::from_str(&text).expect("reparses");
+            assert_eq!(cfg, reparsed);
+        }
     }
 }

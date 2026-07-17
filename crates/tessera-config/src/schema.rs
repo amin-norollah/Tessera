@@ -149,6 +149,43 @@ pub enum TrafficKind {
     TableBased {
         path: String,
     },
+    /// A Netrace-format dependency trace (`tessera_traffic::netrace`,
+    /// P3.5-F1/F7); `path` is resolved by the caller, which loads it with
+    /// `tessera_traffic::netrace::NetraceTrace::from_reader` and builds the
+    /// generator with `Netrace::load`. `region` selects `[start, end)` by
+    /// message id (`None` replays the full trace, P3.5-F1 region selection).
+    Netrace {
+        path: String,
+        #[serde(default)]
+        region: Option<(u64, u64)>,
+        #[serde(default = "NodeMappingCfg::default_for_traffic")]
+        node_mapping: NodeMappingCfg,
+    },
+    /// A SynFull-style Markov traffic model (`tessera_traffic::synfull`,
+    /// P3.5-F3); `model_path` is resolved by the caller, which loads it with
+    /// `SynFullModel::from_toml` and builds the generator with `SynFull::new`.
+    SynFull {
+        model_path: String,
+    },
+}
+
+/// How a trace's node ids remap onto this run's mesh (P3.5-F6), mirroring
+/// `tessera_traffic::netrace::NodeMapping`. Kept as separate, plain-data
+/// schema types rather than depending on `tessera-traffic` directly: this
+/// crate's schema stays decoupled from concrete generator implementations
+/// (see the module doc), the same reason `TableBased`'s table text is parsed
+/// here but built into a router elsewhere.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NodeMappingCfg {
+    Identity,
+    Modulo,
+}
+
+impl NodeMappingCfg {
+    fn default_for_traffic() -> Self {
+        NodeMappingCfg::Identity
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
