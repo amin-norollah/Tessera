@@ -1,14 +1,20 @@
-//! Traffic generators behind the [`TrafficGenerator`] contract. Phase 0 ships
-//! uniform-random destinations with Bernoulli injection; the synthetic
-//! permutation family and Netrace/SynFull import come later.
+//! Traffic generators behind the [`TrafficGenerator`] contract: Phase 0/1
+//! synthetic patterns (`Uniform`, [`Hotspot`], [`Transpose`], [`Bimodal`]),
+//! composable with [`closed_loop::ClosedLoop`] (outstanding-message limits)
+//! and [`reorder::ReorderBuffer`] (destination reassembly) for the traffic-
+//! realism sources layered on top.
 
 use tessera_core::{NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
 mod adversarial;
 mod bimodal;
+pub mod closed_loop;
+pub mod reorder;
 
 pub use adversarial::{Hotspot, Transpose};
 pub use bimodal::Bimodal;
+pub use closed_loop::ClosedLoop;
+pub use reorder::ReorderBuffer;
 
 /// Uniform random traffic: each cycle a node injects one packet with
 /// probability `rate` (packets/node/cycle), to a uniformly-chosen destination
