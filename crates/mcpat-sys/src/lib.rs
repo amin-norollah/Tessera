@@ -1,4 +1,4 @@
-//! `mcpat-sys` — FFI seam for McPAT power/area/timing (P3-F9/F11).
+//! `mcpat-sys`: FFI seam for McPAT power/area/timing (P3-F9/F11).
 //!
 //! McPAT (RESEARCH_NOTES D3) provides integrated power/area/timing and is the
 //! reference behind processing-element power in PAT-Noxim. It is exposed here
@@ -19,7 +19,7 @@ pub const LINKED: bool = cfg!(feature = "link");
 /// Display name of the reference model.
 pub const MODEL: &str = "McPAT";
 /// Whether the McPAT integration has been verified against source (P3-F11).
-/// `false` until the wiring is audited and real bindings land — callers must
+/// `false` until the wiring is audited and real bindings land: callers must
 /// treat McPAT output as untrusted while this is `false`.
 pub const MCPAT_WIRING_VERIFIED: bool = false;
 

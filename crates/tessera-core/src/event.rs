@@ -1,6 +1,6 @@
 //! Per-cycle observable events (P4-F4): the columnar trace `tessera-record`
 //! streams to Arrow/Parquet and diffs bit-for-bit as the replay-equivalence
-//! oracle (G4.1). Plain data, no dependencies here — `tessera-core` stays
+//! oracle (G4.1). Plain data, no dependencies here: `tessera-core` stays
 //! dependency-free; serialization lives in `tessera-record`.
 //!
 //! [`crate::sim::Simulation::record_events`] turns collection on; each stage
@@ -70,7 +70,7 @@ pub enum Event {
         latency: u64,
     },
     /// A flit was discarded rather than delivered. Schema-complete for the
-    /// columnar contract; not emitted today — the current router model is
+    /// columnar contract; not emitted today: the current router model is
     /// lossless (credit-based flow control admits no drop path).
     Dropped {
         cycle: u64,

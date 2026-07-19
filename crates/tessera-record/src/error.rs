@@ -1,4 +1,4 @@
-//! [`RecordError`]: this crate's single error type — errors are values, not
+//! [`RecordError`]: this crate's single error type: errors are values, not
 //! panics (`docs/AGENTS.md`).
 
 #[derive(Debug, thiserror::Error)]

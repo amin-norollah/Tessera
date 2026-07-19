@@ -1,7 +1,7 @@
 //! Phase 4 replay-equivalence (gate G4.1/G4.2), exercised over a real
 //! `Simulation`: re-simulating from a fresh `tessera_record::SimSource` and
 //! seeking via a mid-run keyframe both reproduce a reference run's exact
-//! event trace, across a matrix of traffic/routing sources — deterministic
+//! event trace, across a matrix of traffic/routing sources: deterministic
 //! routing, adaptive/RNG-driven selection (stresses `router_rng` stream
 //! restore), Netrace, and SynFull (both stress traffic-generator state
 //! restore, since their internal state isn't derivable from RNG alone; see
@@ -96,7 +96,7 @@ fn fan_in_trace() -> NetraceTrace {
 }
 
 /// Netrace's dependency ready-set/reorder-buffer state is path-dependent
-/// (driven by delivery history, not RNG) — this stresses `TrafficGenerator::
+/// (driven by delivery history, not RNG): this stresses `TrafficGenerator::
 /// snapshot`/`restore`, not just RNG-stream restore.
 struct NetraceSource {
     cfg: SimConfig,
@@ -143,7 +143,7 @@ const SYNFULL_MODEL: &str = r#"
 "#;
 
 /// SynFull's per-node Markov index is path-dependent (advanced by draws
-/// already made) — like Netrace, this stresses `TrafficGenerator::snapshot`/
+/// already made): like Netrace, this stresses `TrafficGenerator::snapshot`/
 /// `restore` beyond what restoring `pe_rng` alone would reconstruct.
 struct SynFullSource {
     cfg: SimConfig,
@@ -175,7 +175,7 @@ impl SimSource for SynFullSource {
 
 /// The gate: a from-seed re-simulation (P4-F3) and a nearest-keyframe replay
 /// (P4-F2) both reproduce a reference run's exact event trace to `until`,
-/// bit-for-bit — not just matching summary metrics.
+/// bit-for-bit: not just matching summary metrics.
 fn assert_replay_is_equivalent(source: &impl SimSource, until: u64, keyframe_cycle: u64) {
     assert!(keyframe_cycle < until);
 

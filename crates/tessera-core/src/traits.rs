@@ -221,7 +221,7 @@ pub trait TrafficGenerator: Send + Sync {
 
     /// Serializes this generator's internal state for keyframing (P4-F1).
     /// Default `None`: a generator whose `on_tick`/`on_deliver` draw only from
-    /// the passed-in [`NodeRng`] is stateless — restoring the RNG streams
+    /// the passed-in [`NodeRng`] is stateless: restoring the RNG streams
     /// already reconstructs it exactly. Path-dependent sources (e.g. Netrace's
     /// dependency-resolution state, SynFull's per-node Markov index) override
     /// this to capture what RNG restore alone can't.
@@ -327,7 +327,7 @@ pub trait Allocator: Send + Sync {
     /// (P4-F1). Default `None`: a stateless allocator has nothing beyond
     /// `reqs`/`grants` to capture. Fair arbiters (round-robin pointers,
     /// matrix priority relations, iSLIP grant/accept pointers) override this
-    /// — that state is accumulated across cycles and isn't derivable from
+    ///: that state is accumulated across cycles and isn't derivable from
     /// config or RNG restore alone.
     fn snapshot(&self) -> Option<Vec<u8>> {
         None

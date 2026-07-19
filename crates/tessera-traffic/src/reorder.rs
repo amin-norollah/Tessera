@@ -48,7 +48,7 @@ impl<T> ReorderBuffer<T> {
     /// (0-based, assigned by the source in injection order). Returns every
     /// item now releasable in order: `item` itself if it was the next one
     /// expected from `src`, plus any subsequently-buffered items that become
-    /// contiguous as a result — otherwise `item` is buffered and an empty
+    /// contiguous as a result: otherwise `item` is buffered and an empty
     /// list is returned.
     pub fn arrive(&mut self, src: RouterId, seq: u64, item: T) -> Result<Vec<T>, StaleArrival> {
         let state = self.sources.entry(src).or_insert_with(|| SourceState {
@@ -80,7 +80,7 @@ impl<T> ReorderBuffer<T> {
 }
 
 /// Per source: next-expected sequence number, and any out-of-order items
-/// still buffered ahead of it (`(seq, item)` pairs) — the wire shape of
+/// still buffered ahead of it (`(seq, item)` pairs): the wire shape of
 /// [`ReorderBuffer::snapshot`]/[`ReorderBuffer::restore`].
 pub type ReorderSnapshot<T> = Vec<(RouterId, u64, Vec<(u64, T)>)>;
 

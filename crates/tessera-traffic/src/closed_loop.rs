@@ -15,7 +15,7 @@ use tessera_core::{Delivery, NodeRng, PacketDesc, RouterId, TrafficGenerator};
 
 /// Caps outstanding packets per node at `limit`: once a node has `limit`
 /// packets in flight, `on_tick` drops any further packets the wrapped
-/// generator would have injected that cycle (rather than queuing them — a
+/// generator would have injected that cycle (rather than queuing them: a
 /// dropped packet's generator gets another chance to inject next cycle, same
 /// as a real closed-loop PE that simply doesn't issue a new request while
 /// its MSHRs are full).

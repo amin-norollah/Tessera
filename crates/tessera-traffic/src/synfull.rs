@@ -8,7 +8,7 @@
 //! # Format
 //!
 //! Reads a **Tessera-native TOML model** (`SynFullModelFile`), not the
-//! original SynFull tool's MATLAB/C model-fitting output — this crate
+//! original SynFull tool's MATLAB/C model-fitting output: this crate
 //! consumes already-fitted Markov models (per this phase's stated scope: new
 //! model *generation* from full-system runs is out of scope, that's SynFull's
 //! own job), expressed as plain, hand-editable TOML in the same

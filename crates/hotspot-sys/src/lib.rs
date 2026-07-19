@@ -1,4 +1,4 @@
-//! `hotspot-sys` — FFI seam for the HotSpot 6.0 RC thermal solver (P3-F9).
+//! `hotspot-sys`: FFI seam for the HotSpot 6.0 RC thermal solver (P3-F9).
 //!
 //! HotSpot 6.0 (RESEARCH_NOTES D4) is the reference compact RC thermal solver
 //! Tessera's native `tessera-thermal` model mirrors. This crate exposes it behind

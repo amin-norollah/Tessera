@@ -384,14 +384,14 @@ struct NetraceState {
     ready: Vec<VecDeque<usize>>,
     rob: ReorderBuffer<u64>,
     /// Per source node, delivered message ids in true logical (trace) order,
-    /// reassembled from however the network actually delivered them —
+    /// reassembled from however the network actually delivered them:
     /// demonstrates P3.5-F5 for a real generator.
     delivered_order: HashMap<RouterId, Vec<u64>>,
 }
 
 /// A [`TrafficGenerator`] that replays a [`NetraceTrace`]: a message is
 /// injected at its source only once every dependency predecessor has been
-/// delivered (P3.5-F1), preserving the trace's critical path. Pure replay —
+/// delivered (P3.5-F1), preserving the trace's critical path. Pure replay:
 /// no randomness is drawn, so the `rng` parameter of `on_tick` is unused.
 #[derive(Debug)]
 pub struct Netrace {

@@ -1,6 +1,6 @@
 //! Calibrated mode (P3-F10): fit the native model to reference measurements.
 //!
-//! The native dynamic-energy model is **linear in its energy coefficients** —
+//! The native dynamic-energy model is **linear in its energy coefficients**:
 //! every per-event capacitance and the two link-energy coefficients enter the
 //! total as a simple product with the activity counts. So a single
 //! multiplicative correction `k` applied uniformly to all of them scales the
@@ -95,7 +95,7 @@ impl NativePowerModel {
 /// coefficient (per-event capacitances + link wire/repeater energy) by `scale`,
 /// and record the calibration in each affected parameter's provenance so the fit
 /// is self-documenting (P3-F10). Leakage, area, and thermal params are untouched
-/// — this fit calibrates dynamic energy only.
+///: this fit calibrates dynamic energy only.
 pub fn apply_dynamic_scale(base: &ParamDb, scale: f64, reference_label: &str) -> ParamDb {
     let mut db = base.clone();
     db.profile = format!("{} (calibrated)", base.profile);

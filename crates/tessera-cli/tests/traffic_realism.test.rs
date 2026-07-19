@@ -64,7 +64,7 @@ fn mesh_cfg(seed: u64) -> SimConfig {
     }
 }
 
-/// Node 5 fans in from nodes 0 and 1, then forwards to node 10 — message 2
+/// Node 5 fans in from nodes 0 and 1, then forwards to node 10: message 2
 /// must not be injected before *both* of its producers have delivered.
 fn fan_in_trace() -> NetraceTrace {
     NetraceTrace::parse(

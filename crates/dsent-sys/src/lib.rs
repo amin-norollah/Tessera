@@ -1,4 +1,4 @@
-//! `dsent-sys` — FFI seam for DSENT electrical power & area (P3-F9, primary).
+//! `dsent-sys`: FFI seam for DSENT electrical power & area (P3-F9, primary).
 //!
 //! DSENT (RESEARCH_NOTES D2) is the primary modern reference power/area model
 //! (electrical, ~20% of SPICE). This crate is the **trait-conforming seam**:
@@ -6,7 +6,7 @@
 //! native model, so a run can name it interchangeably.
 //!
 //! The external DSENT C++ library is bound behind the opt-in `link` feature.
-//! Without it — the default, so the workspace builds with no library present —
+//! Without it: the default, so the workspace builds with no library present:
 //! the model reports **degraded** via [`DsentPower::try_new`], and callers fall
 //! back to the native `tessera-power` model. Real bindings are pending the
 //! library (the trait bodies are `todo!` until then); the seam is compile-checked
@@ -46,7 +46,7 @@ impl DsentPower {
     /// Construct a DSENT-backed model, or report why it is unavailable.
     ///
     /// Returns [`Unavailable`] both when built without `link` (no library) and,
-    /// for now, when built with `link` (bindings pending) — so callers always
+    /// for now, when built with `link` (bindings pending): so callers always
     /// have a defined fallback path.
     pub fn try_new() -> Result<Self, Unavailable> {
         Err(Unavailable {

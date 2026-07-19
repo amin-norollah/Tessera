@@ -1,4 +1,4 @@
-//! `orion-sys` — FFI seam for ORION 3.0 router power & area (P3-F9, legacy).
+//! `orion-sys`: FFI seam for ORION 3.0 router power & area (P3-F9, legacy).
 //!
 //! ORION 3.0 (RESEARCH_NOTES D1) is regression-fit to physical-implementation
 //! data (avg error ≤ 9.3%) and is PAT-Noxim's power model; here it is the

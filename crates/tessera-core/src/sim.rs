@@ -245,7 +245,7 @@ pub struct Simulation {
     sa2_grants: GrantSet,
 
     /// Per-cycle observable events (P4-F4), or `None` while recording is off
-    /// (the default) — checked once per push site, no allocation or dispatch
+    /// (the default): checked once per push site, no allocation or dispatch
     /// on the non-recording path. See [`Simulation::record_events`].
     events: Option<Vec<Event>>,
 }
@@ -995,7 +995,7 @@ impl Simulation {
 
     /// Plain-data copy of everything needed to resume this simulation at its
     /// current cycle (P4-F1 keyframe): trait objects (topology/routing/
-    /// selection/allocators/traffic) are NOT included — a keyframe is only
+    /// selection/allocators/traffic) are NOT included: a keyframe is only
     /// meaningful restored onto a `Simulation` freshly reconstructed from the
     /// same config (see `tessera-record::SimSource`), which already recreates
     /// those. Traffic-generator state that outlives a single tick (e.g.
