@@ -155,9 +155,36 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
     from-seed re-simulation and nearest-keyframe restore-and-replay reproduce a reference
     run's event trace bit-for-bit (G4.1), and `SeekTo` via an on-disk keyframe store
     matches a from-seed resimulation to the same cycle (G4.2).
-  - Outstanding (tracked as OUT-17, Milestones B–D): Arrow/Parquet event-stream writer +
-    SQLite run catalog, DuckDB query layer + run comparison, delta/keyframe-interval
-    tuning benchmarks and a reproducibility-bundle stub.
+  - Milestone B — Arrow/Parquet event stream + SQLite run catalog (P4-F4, P4-F7, gate
+    G4.5):
+    - `tessera-stats`: `BatchSink`/`StreamingRecorder` are now generic over the row type
+      (`BatchSink<R>`, `StreamingRecorder<R, S: BatchSink<R>>`) instead of monomorphic to
+      `MetricRow`, so the same bounded-memory streaming pattern serves both Phase 3 stats
+      and Phase 4 events without a second implementation. `arrow`/`parquet` moved to
+      `[workspace.dependencies]` for version-unification (P3-F14 unaffected: `VecSink`/
+      `CsvSink`/`ParquetSink`'s existing behavior is unchanged, just generalized).
+    - `tessera-record::event` — an Arrow schema flattening the `Event` enum into one wide,
+      nullable-per-variant table (`kind` + every variant's fields), and
+      `EventParquetSink: BatchSink<Event>` (same bounded-memory/latched-error shape as
+      `tessera-stats`'s `ParquetSink`), behind a new off-by-default `events` feature.
+    - `tessera-record::catalog::Catalog` — a SQLite-backed run registry (`register_run`/
+      `get_run`/`list_runs`): a run's config travels as opaque text (no dependency on
+      `tessera-config`, staying below it in the dependency direction) alongside its seed
+      and keyframe-dir/event-store paths, behind a new off-by-default `catalog` feature
+      (`rusqlite`'s `bundled` SQLite amalgamation compiled cleanly on this Windows/MSVC
+      dev environment — no build pain, unlike the DuckDB risk flagged for OUT-30).
+    - `tessera-record::Recorder` — ties keyframe cadence and event streaming into one
+      per-cycle call: `start` turns on event recording and captures the cycle-0 keyframe,
+      `observe` (called once per cycle after `tick()`) writes a keyframe on the configured
+      interval and drains/streams that cycle's events, `finish` flushes and closes.
+    - Tested over a real `Simulation` (`crates/tessera-cli/tests/recording.test.rs`): a
+      recorded run's Parquet row count matches an independent from-seed run collected
+      in-memory, keyframes land on the configured cadence, `SeekTo` via the on-disk
+      keyframes still matches resimulation once a real run is streaming to disk (not just
+      the in-memory scenario Milestone A's test covers), and a recorded run registers into
+      the catalog with its provenance intact (G4.5).
+  - Outstanding (tracked as OUT-17): DuckDB query layer + run comparison (OUT-30),
+    delta/keyframe-interval tuning benchmarks and a reproducibility-bundle stub (OUT-31).
 - Phase 1 backfill: `tessera-config` (schema, `validate()`, Noxim traffic/routing-table
   import); a generic `Allocator` trait unifying VC allocation and both switch-allocation
   phases (round-robin/matrix/iSLIP arbiters); `Torus2D` topology with dateline VC

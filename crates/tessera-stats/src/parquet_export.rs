@@ -123,7 +123,7 @@ impl ParquetSink {
     }
 }
 
-impl BatchSink for ParquetSink {
+impl BatchSink<MetricRow> for ParquetSink {
     fn write_batch(&mut self, rows: &[MetricRow]) {
         if self.error.is_some() {
             return;

@@ -8,8 +8,8 @@ description = "Tessera metrics collection and export: latency-throughput CSV plu
 
 [dependencies]
 tessera-core.workspace = true
-arrow = { version = "53", optional = true }
-parquet = { version = "53", optional = true }
+arrow = { workspace = true, optional = true }
+parquet = { workspace = true, optional = true }
 
 [features]
 # Off by default: the Arrow/Parquet writer pulls a large dependency tree, so it

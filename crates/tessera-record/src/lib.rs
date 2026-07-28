@@ -16,13 +16,25 @@
 //! and everything here ([`KeyframeWriter`]/[`KeyframeReader`]/[`SeekEngine`]/
 //! the `replay` helpers) is generic over it.
 
+#[cfg(feature = "catalog")]
+pub mod catalog;
 mod error;
+#[cfg(feature = "events")]
+pub mod event;
 pub mod keyframe;
+#[cfg(feature = "events")]
+pub mod recorder;
 pub mod replay;
 pub mod seek;
 
+#[cfg(feature = "catalog")]
+pub use catalog::{Catalog, NewRun, RunRecord};
 pub use error::RecordError;
+#[cfg(feature = "events")]
+pub use event::EventParquetSink;
 pub use keyframe::{KeyframeReader, KeyframeWriter};
+#[cfg(feature = "events")]
+pub use recorder::Recorder;
 pub use replay::{first_divergence, run_collecting_events};
 pub use seek::SeekEngine;
 

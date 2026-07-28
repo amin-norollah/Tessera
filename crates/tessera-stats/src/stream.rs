@@ -1,17 +1,19 @@
-//! Streaming, bounded-memory metric time-series (P3-F14, P3-N2).
+//! Streaming, bounded-memory row time-series (P3-F14, P3-N2).
 //!
 //! PAT-Noxim accumulates every per-cycle sample in an ever-growing
 //! `vector<double>`; over a long run that is unbounded memory. Tessera instead
-//! **streams** fixed-size batches of metric rows to a [`BatchSink`] and keeps
-//! only one batch in RAM at a time, so steady-state memory is `O(batch_size)`
-//! regardless of run length (P3-N2).
+//! **streams** fixed-size batches of rows to a [`BatchSink`] and keeps only one
+//! batch in RAM at a time, so steady-state memory is `O(batch_size)` regardless
+//! of run length (P3-N2).
 //!
-//! The sink is pluggable: an in-memory [`VecSink`] for tests, a [`CsvSink`]
-//! here, and an Arrow/Parquet writer as a drop-in for the columnar store
-//! (Phase 3 step, the remaining half of P3-F14). Column reductions
-//! ([`mean`], [`sum`]) run in a **fixed left-to-right associative order** so a
-//! reduction is identical regardless of thread count (P3-F14 determinism,
-//! P3-N3).
+//! [`StreamingRecorder`]/[`BatchSink`] are generic over the row type so this
+//! bounded-memory pattern serves both [`MetricRow`] (Phase 3 stats) and
+//! `tessera_record::Event` (Phase 4 recording) without a second
+//! implementation: the sink is pluggable — an in-memory [`VecSink`] for tests,
+//! [`CsvSink`] here for `MetricRow`, and an Arrow/Parquet writer as a drop-in
+//! for the columnar store. Column reductions ([`mean`], [`sum`]) run in a
+//! **fixed left-to-right associative order** so a reduction is identical
+//! regardless of thread count (P3-F14 determinism, P3-N3).
 
 use std::fmt::Write as _;
 
@@ -65,27 +67,27 @@ impl MetricRow {
     }
 }
 
-/// A destination for streamed metric batches. Implementations must consume each
-/// batch fully; the recorder guarantees rows arrive in push order and never
-/// re-sends a batch.
-pub trait BatchSink {
+/// A destination for streamed row batches, generic over the row type `R` (see
+/// the module docs). Implementations must consume each batch fully; the
+/// recorder guarantees rows arrive in push order and never re-sends a batch.
+pub trait BatchSink<R> {
     /// Write one batch of rows (never empty). May be called many times.
-    fn write_batch(&mut self, rows: &[MetricRow]);
+    fn write_batch(&mut self, rows: &[R]);
     /// Called once at [`StreamingRecorder::finish`]; default no-op.
     fn finish(&mut self) {}
 }
 
-/// Buffers metric rows and flushes them to a [`BatchSink`] in fixed-size
-/// batches, bounding in-RAM footprint to `capacity` rows (P3-N2).
-pub struct StreamingRecorder<S: BatchSink> {
+/// Buffers rows and flushes them to a [`BatchSink`] in fixed-size batches,
+/// bounding in-RAM footprint to `capacity` rows (P3-N2).
+pub struct StreamingRecorder<R, S: BatchSink<R>> {
     capacity: usize,
-    batch: Vec<MetricRow>,
+    batch: Vec<R>,
     sink: S,
     total_rows: u64,
     flushes: u64,
 }
 
-impl<S: BatchSink> StreamingRecorder<S> {
+impl<R, S: BatchSink<R>> StreamingRecorder<R, S> {
     /// Create a recorder flushing every `capacity` rows. `capacity` is clamped
     /// to at least 1.
     pub fn new(capacity: usize, sink: S) -> Self {
@@ -101,7 +103,7 @@ impl<S: BatchSink> StreamingRecorder<S> {
 
     /// Record one row; flushes automatically when the batch fills. The in-RAM
     /// buffer never exceeds `capacity` (checked by [`Self::buffered`]).
-    pub fn push(&mut self, row: MetricRow) {
+    pub fn push(&mut self, row: R) {
         self.batch.push(row);
         self.total_rows += 1;
         if self.batch.len() >= self.capacity {
@@ -154,16 +156,28 @@ pub fn mean(values: &[f64]) -> f64 {
     }
 }
 
-/// An in-memory sink that keeps every row: for tests and small runs.
-#[derive(Default)]
-pub struct VecSink {
-    pub rows: Vec<MetricRow>,
+/// An in-memory sink that keeps every row, for any row type: for tests and
+/// small runs.
+pub struct VecSink<R> {
+    pub rows: Vec<R>,
     pub batches: usize,
     pub finished: bool,
 }
 
-impl BatchSink for VecSink {
-    fn write_batch(&mut self, rows: &[MetricRow]) {
+// Written by hand rather than `#[derive(Default)]`: the derive would require
+// `R: Default` even though an empty `Vec<R>` needs no such bound.
+impl<R> Default for VecSink<R> {
+    fn default() -> Self {
+        Self {
+            rows: Vec::new(),
+            batches: 0,
+            finished: false,
+        }
+    }
+}
+
+impl<R: Clone> BatchSink<R> for VecSink<R> {
+    fn write_batch(&mut self, rows: &[R]) {
         assert!(!rows.is_empty(), "recorder must not emit empty batches");
         self.rows.extend_from_slice(rows);
         self.batches += 1;
@@ -198,7 +212,7 @@ impl CsvSink {
     }
 }
 
-impl BatchSink for CsvSink {
+impl BatchSink<MetricRow> for CsvSink {
     fn write_batch(&mut self, rows: &[MetricRow]) {
         for row in rows {
             let _ = writeln!(self.out, "{}", row.to_columns().join(","));
