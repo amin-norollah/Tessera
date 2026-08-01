@@ -17,4 +17,7 @@ pub enum RecordError {
     #[cfg(feature = "events")]
     #[error("event stream error: {0}")]
     EventStream(#[from] parquet::errors::ParquetError),
+    #[cfg(feature = "query")]
+    #[error("query error: {0}")]
+    Query(#[from] duckdb::Error),
 }

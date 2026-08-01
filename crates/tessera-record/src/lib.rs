@@ -18,10 +18,14 @@
 
 #[cfg(feature = "catalog")]
 pub mod catalog;
+#[cfg(feature = "query")]
+pub mod compare;
 mod error;
 #[cfg(feature = "events")]
 pub mod event;
 pub mod keyframe;
+#[cfg(feature = "query")]
+pub mod query;
 #[cfg(feature = "events")]
 pub mod recorder;
 pub mod replay;
@@ -29,10 +33,16 @@ pub mod seek;
 
 #[cfg(feature = "catalog")]
 pub use catalog::{Catalog, NewRun, RunRecord};
+#[cfg(feature = "query")]
+pub use compare::{
+    compare, compare_summary, compare_timeseries, MetricDelta, RunDiff, TimeSeriesPoint,
+};
 pub use error::RecordError;
 #[cfg(feature = "events")]
 pub use event::EventParquetSink;
 pub use keyframe::{KeyframeReader, KeyframeWriter};
+#[cfg(feature = "query")]
+pub use query::{Query, QueryResult};
 #[cfg(feature = "events")]
 pub use recorder::Recorder;
 pub use replay::{first_divergence, run_collecting_events};

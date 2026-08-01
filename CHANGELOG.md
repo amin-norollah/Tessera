@@ -183,8 +183,31 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
       keyframes still matches resimulation once a real run is streaming to disk (not just
       the in-memory scenario Milestone A's test covers), and a recorded run registers into
       the catalog with its provenance intact (G4.5).
-  - Outstanding (tracked as OUT-17): DuckDB query layer + run comparison (OUT-30),
-    delta/keyframe-interval tuning benchmarks and a reproducibility-bundle stub (OUT-31).
+  - Milestone C — DuckDB query layer + run comparison (P4-F5/F6, gate G4.3):
+    - `tessera-record::query::Query` — an in-process DuckDB connection registering a run's
+      event Parquet file as a view (`read_parquet`, no import step), behind a new
+      off-by-default `query` feature. `duckdb`'s `bundled` build (the flagged Windows/MSVC
+      risk in OUT-30) compiled cleanly here, but needs its `parquet` Cargo feature enabled
+      too (`libduckdb-sys/parquet`, statically linking DuckDB's own Parquet reader):
+      without it, `read_parquet` tries to **autoload the extension over the network** at
+      query time and fails offline — not just slow, silently wrong for a reproducibility
+      tool if it ever half-succeeded. Implementation note: each distinct cargo
+      profile/feature combination (`dev`/`test`/`clippy`) triggers its own from-scratch
+      compile of DuckDB's C++ amalgamation (multiple GB each); budget disk accordingly
+      when touching this dependency.
+    - `tessera-record::compare` — `compare_summary` (named scalar-metric deltas from
+      caller-supplied SQL) and `compare_timeseries` (aligned per-bucket time-series diff,
+      buckets present in only one run aligned against `0.0` on the other side rather than
+      truncating to the shorter run), both built on `Query` rather than a second
+      data-access path.
+    - Tested over real `Simulation`s
+      (`crates/tessera-cli/tests/query_and_compare.test.rs`): a recorded run's DuckDB
+      aggregates (count, average latency) match an independently-collected in-memory
+      event trace (G4.3 "query correctness"), and comparing two runs differing only in
+      injection rate produces a correct, monotonic diff in both summary metrics and an
+      aligned per-cycle-bucket time series (G4.3 "run comparison").
+  - Outstanding (tracked as OUT-17): delta/keyframe-interval tuning benchmarks and a
+    reproducibility-bundle stub (OUT-31).
 - Phase 1 backfill: `tessera-config` (schema, `validate()`, Noxim traffic/routing-table
   import); a generic `Allocator` trait unifying VC allocation and both switch-allocation
   phases (round-robin/matrix/iSLIP arbiters); `Torus2D` topology with dateline VC

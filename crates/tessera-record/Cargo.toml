@@ -14,6 +14,7 @@ tessera-stats = { workspace = true, optional = true }
 arrow = { workspace = true, optional = true }
 parquet = { workspace = true, optional = true }
 rusqlite = { workspace = true, features = ["bundled"], optional = true }
+duckdb = { workspace = true, features = ["bundled", "parquet"], optional = true }
 
 [features]
 # Off by default: the Arrow/Parquet event-stream writer pulls a large
@@ -22,3 +23,6 @@ events = ["dep:tessera-stats", "dep:arrow", "dep:parquet"]
 # Off by default: `rusqlite`'s `bundled` feature compiles SQLite's C
 # amalgamation.
 catalog = ["dep:rusqlite"]
+# Off by default: `duckdb`'s `bundled` feature compiles a large C++
+# amalgamation (docs/OUTSTANDING_PRD.md OUT-30's flagged Windows/MSVC risk).
+query = ["dep:duckdb"]

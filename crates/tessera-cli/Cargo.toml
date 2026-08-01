@@ -31,7 +31,7 @@ tessera-params.workspace = true
 tessera-power.workspace = true
 tessera-thermal.workspace = true
 tessera-diag.workspace = true
-tessera-record = { workspace = true, features = ["events", "catalog"] }
+tessera-record = { workspace = true, features = ["events", "catalog", "query"] }
 parquet.workspace = true
 
 [[test]]
@@ -69,6 +69,10 @@ path = "tests/no_flit_loss.test.rs"
 [[test]]
 name = "plugin"
 path = "tests/plugin.test.rs"
+
+[[test]]
+name = "query_and_compare"
+path = "tests/query_and_compare.test.rs"
 
 [[test]]
 name = "recording"
