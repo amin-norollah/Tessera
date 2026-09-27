@@ -2,6 +2,14 @@
 //! tests: assemble a [`Simulation`] and execute the standard warm-up /
 //! measurement / drain harness for one offered load. Routing components are
 //! resolved by string key through the plugin [`Registry`](tessera_plugin::Registry).
+//! [`build`] assembles a run from a full [`tessera_config::SimConfigFile`]
+//! instead (every component choice, including file-backed traffic).
+
+pub mod build;
+
+pub use build::{
+    build_from_config, build_from_path, load_config, run_configured, BuildError, ConfiguredRun,
+};
 
 use tessera_core::{Allocator, RoutingAlgorithm, SimConfig, Simulation};
 use tessera_model::Mesh2D;

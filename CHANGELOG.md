@@ -4,6 +4,30 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+- Config → engine wiring (OUT-13, OUT-26): `tessera_cli::build`
+  (`build_from_config`/`build_from_path`/`run_configured`) turns a validated
+  `SimConfigFile` into a live `Simulation` that honors every component choice:
+  topology (mesh, or torus with `TorusDimensionOrderXy`), routing and selection by
+  registry key, VA/SA allocators and `alloc_iters`, and every `TrafficKind`
+  (uniform, Noxim table, Netrace, SynFull) with `PacketSizeCfg` applied. Relative
+  traffic paths resolve against the config's directory, and load failures return
+  actionable `BuildError`s instead of panicking. The plugin `Registry`'s frozen v1
+  factories stay infallible; file-backed sources use this separate path. The CLI
+  gains `tessera --config run.toml`.
+  - `tessera-traffic::table::TableTraffic`: a Noxim table-based generator (rows
+    active while `cycle % t_period ∈ [t_on, t_off)`, a cumulative-PIR injection
+    threshold, POR on the cycle after a shot, burst state keyframed).
+  - `tessera-plugin`: `buffer-level`, `round-robin` and `random` selection are
+    registered alongside `first-available`, with a registry-wide selection
+    conformance test.
+  - `tessera-config::validate`: `alloc_iters` must be `>= 1`, and `> 1` requires an
+    `i_slip` VA or SA phase.
+  - Unsupported choices are rejected, not ignored: non-DOR routing on a torus, and
+    `vc_classes` (Duato is OUT-14).
+  - Tested in `crates/tessera-cli/tests/config_build.test.rs`: an identical
+    per-cycle event trace vs a hand-assembled `Simulation` proves that the
+    allocator, selection and routing mapping is correct.
+
 - Phase 3 (in progress): native power/area/thermal + diagnostics + streaming stats.
   - `tessera-params` — the cited parameter database (`Param`/`Citation`, TOML
     load/validate/round-trip, provenance stamp, `Strict`/`Lenient` provenance policy)
@@ -206,8 +230,24 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
       event trace (G4.3 "query correctness"), and comparing two runs differing only in
       injection rate produces a correct, monotonic diff in both summary metrics and an
       aligned per-cycle-bucket time series (G4.3 "run comparison").
-  - Outstanding (tracked as OUT-17): delta/keyframe-interval tuning benchmarks and a
-    reproducibility-bundle stub (OUT-31).
+  - Milestone D (the last one) — keyframe-interval/compression tuning + reproducibility-
+    bundle stub (P4-F8/F9, gate N3):
+    - `tessera-record::keyframe`: `KeyframeWriter`/`KeyframeReader` gain an optional
+      `Compression` (`None`/`Gzip`, self-describing via a 1-byte on-disk tag, so a reader
+      never needs the write-side choice out of band).
+    - `crates/tessera-cli/examples/keyframe_tuning.rs`: a benchmark sweeping interval ×
+      compression on a fixed 8×8-mesh/uniform-traffic scenario, reporting the tradeoff
+      (per `docs/AGENTS.md`'s "every optimization claim is gated behind a benchmark," not
+      asserted) — see `docs/OUTSTANDING_PRD.md`'s Phase 4 section for a captured run: gzip
+      shrinks keyframe storage ~6× at every interval tested, at roughly 2× the per-
+      keyframe read cost; total bytes scale with keyframe density as expected, and average
+      replay-tick count tracks `interval / 2`.
+    - `tessera-record::bundle::export_bundle` (P4-F9): writes a `manifest.toml` +
+      `config.toml` for a registered `Catalog` run — referencing the run's keyframe/event-
+      store paths rather than copying those artifacts, since the full paper-ready bundle
+      (code snapshot, copied results, figures) is Phase 5's job.
+  - **Phase 4 is complete**: all four milestones land, and the phase's exit gate
+    (G4.1–G4.5) is fully met.
 - Phase 1 backfill: `tessera-config` (schema, `validate()`, Noxim traffic/routing-table
   import); a generic `Allocator` trait unifying VC allocation and both switch-allocation
   phases (round-robin/matrix/iSLIP arbiters); `Torus2D` topology with dateline VC

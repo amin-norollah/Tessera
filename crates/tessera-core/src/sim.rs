@@ -819,9 +819,7 @@ impl Simulation {
         self.sa1_alloc
             .allocate(&self.sa1_reqs, &mut self.sa1_grants);
 
-        for w in &mut self.phase1_winner_vc {
-            *w = NONE;
-        }
+        self.phase1_winner_vc.fill(NONE);
         self.sa2_reqs.clear();
         for r in 0..n {
             for ip in 0..self.ports {
@@ -1032,29 +1030,45 @@ impl Simulation {
             va_alloc_state: self.va_alloc.snapshot(),
             sa1_alloc_state: self.sa1_alloc.snapshot(),
             sa2_alloc_state: self.sa2_alloc.snapshot(),
+            selection_state: self.selection.snapshot(),
         }
     }
 
     /// Overlay a [`Self::snapshot`] onto this simulation. `self` must already
     /// be a fresh, config-reconstructed `Simulation` with the same dimensions
     /// (topology, VC count, buffer depth) the snapshot was taken from; errs on
-    /// a dimension mismatch rather than restoring into a corrupt state.
+    /// a schema-version or dimension mismatch rather than restoring into a
+    /// corrupt state (every array below has a size fixed by topology/config,
+    /// checked here so a bad snapshot fails at this boundary instead of
+    /// panicking later on an out-of-bounds index inside a stage kernel).
     pub fn restore(&mut self, snap: EngineSnapshot) -> Result<(), RestoreError> {
-        let expected_lanes = self.reserve_port.len();
-        if snap.reserve_port.len() != expected_lanes || snap.reserve_vc.len() != expected_lanes {
-            return Err(RestoreError::DimensionMismatch(format!(
-                "snapshot has {} (port,vc)-lanes, this simulation has {expected_lanes}",
-                snap.reserve_port.len(),
-            )));
+        if snap.schema_version != ENGINE_SNAPSHOT_VERSION {
+            return Err(RestoreError::SchemaVersionMismatch {
+                found: snap.schema_version,
+                expected: ENGINE_SNAPSHOT_VERSION,
+            });
         }
-        if snap.pe_rng.len() != self.pe_rng.len() || snap.router_rng.len() != self.router_rng.len()
-        {
-            return Err(RestoreError::DimensionMismatch(format!(
-                "snapshot has {} PE / {} router RNG streams, this simulation has {} / {}",
-                snap.pe_rng.len(),
+        let expected_lanes = self.reserve_port.len();
+        let mismatched = [
+            ("(port,vc)-lane", snap.reserve_port.len(), expected_lanes),
+            ("(port,vc)-lane", snap.reserve_vc.len(), expected_lanes),
+            ("(port,vc)-lane", snap.hold.len(), expected_lanes),
+            ("(port,vc)-lane", snap.credits.len(), expected_lanes),
+            ("link", snap.links.len(), self.links.len()),
+            ("router activity", snap.activity.len(), self.activity.len()),
+            ("PE source queue", snap.pe_src.len(), self.pe_src.len()),
+            ("PE RNG stream", snap.pe_rng.len(), self.pe_rng.len()),
+            (
+                "router RNG stream",
                 snap.router_rng.len(),
-                self.pe_rng.len(),
                 self.router_rng.len(),
+            ),
+        ]
+        .into_iter()
+        .find(|&(_, found, expected)| found != expected);
+        if let Some((what, found, expected)) = mismatched {
+            return Err(RestoreError::DimensionMismatch(format!(
+                "snapshot has {found} {what}s, this simulation has {expected}"
             )));
         }
         self.buffers
@@ -1094,13 +1108,16 @@ impl Simulation {
         if let Some(bytes) = &snap.sa2_alloc_state {
             self.sa2_alloc.restore(bytes);
         }
+        if let Some(bytes) = &snap.selection_state {
+            self.selection.restore(bytes);
+        }
         Ok(())
     }
 }
 
 /// Bumped whenever [`EngineSnapshot`]'s fields change shape; `tessera-record`'s
 /// keyframe reader checks this before trusting a stored snapshot.
-pub const ENGINE_SNAPSHOT_VERSION: u16 = 1;
+pub const ENGINE_SNAPSHOT_VERSION: u16 = 2;
 
 /// Plain-data engine state sufficient to resume an otherwise
 /// config-reconstructed [`Simulation`] at `cycle` (P4-F1). See
@@ -1144,6 +1161,11 @@ pub struct EngineSnapshot {
     pub va_alloc_state: Option<Vec<u8>>,
     pub sa1_alloc_state: Option<Vec<u8>>,
     pub sa2_alloc_state: Option<Vec<u8>>,
+
+    /// Opaque selection-policy state (see [`SelectionPolicy::snapshot`]): the
+    /// same path-dependent-state gap as the allocators above, for policies
+    /// like `RoundRobinSelection` that carry a rotation pointer across cycles.
+    pub selection_state: Option<Vec<u8>>,
 }
 
 /// A snapshot can't be restored onto this simulation as-is.
@@ -1152,12 +1174,19 @@ pub enum RestoreError {
     /// The snapshot's array lengths don't match this simulation's dimensions
     /// (it was taken from a differently-shaped run).
     DimensionMismatch(String),
+    /// The snapshot's `schema_version` doesn't match [`ENGINE_SNAPSHOT_VERSION`]
+    /// (produced by an incompatible build).
+    SchemaVersionMismatch { found: u16, expected: u16 },
 }
 
 impl std::fmt::Display for RestoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RestoreError::DimensionMismatch(msg) => write!(f, "{msg}"),
+            RestoreError::SchemaVersionMismatch { found, expected } => write!(
+                f,
+                "engine snapshot schema version mismatch: found {found}, this build expects {expected}"
+            ),
         }
     }
 }

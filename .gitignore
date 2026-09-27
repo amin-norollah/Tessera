@@ -1,6 +1,8 @@
 # --- Rust / Cargo ---
 /target/
 **/target/
+# Local-only build config (e.g. a redirected target-dir); not meant to be shared.
+/.cargo/
 # Cargo.lock is committed for the workspace's binaries (tessera-cli, tessera-server);
 # if a published library crate is split out later, ignore its own lock instead.
 *.pdb

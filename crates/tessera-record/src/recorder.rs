@@ -129,6 +129,7 @@ mod tests {
             va_alloc_state: None,
             sa1_alloc_state: None,
             sa2_alloc_state: None,
+            selection_state: None,
         };
 
         // Directly exercise the keyframe-cadence + event-drain logic that

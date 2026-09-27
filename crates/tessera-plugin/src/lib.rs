@@ -18,8 +18,8 @@ use std::collections::HashMap;
 
 use tessera_core::{RoutingAlgorithm, SelectionPolicy, TrafficGenerator};
 use tessera_routing::{
-    DimensionOrderXy, DimensionOrderXyz, FirstAvailable, NegativeFirst, NorthLast, OddEven,
-    WestFirst,
+    BufferLevel, DimensionOrderXy, DimensionOrderXyz, FirstAvailable, NegativeFirst, NorthLast,
+    OddEven, Random, RoundRobinSelection, WestFirst,
 };
 use tessera_traffic::Uniform;
 
@@ -111,6 +111,10 @@ impl Registry {
 
     pub fn has_routing(&self, name: &str) -> bool {
         self.routing.contains_key(name)
+    }
+
+    pub fn has_selection(&self, name: &str) -> bool {
+        self.selection.contains_key(name)
     }
 
     pub fn routing_names(&self) -> Vec<&str> {
@@ -215,6 +219,18 @@ impl Plugin for Builtins {
             "first-available",
             Box::new(|_| -> Box<dyn SelectionPolicy> { Box::new(FirstAvailable) }),
         );
+        r.register_selection(
+            "buffer-level",
+            Box::new(|_| -> Box<dyn SelectionPolicy> { Box::new(BufferLevel) }),
+        );
+        r.register_selection(
+            "round-robin",
+            Box::new(|_| -> Box<dyn SelectionPolicy> { Box::new(RoundRobinSelection::new()) }),
+        );
+        r.register_selection(
+            "random",
+            Box::new(|_| -> Box<dyn SelectionPolicy> { Box::new(Random) }),
+        );
         r.register_traffic(
             "uniform",
             Box::new(|c: &PluginCtx| -> Box<dyn TrafficGenerator> {
@@ -268,7 +284,10 @@ mod tests {
                 "xyz"
             ]
         );
-        assert_eq!(r.selection_names(), ["first-available"]);
+        assert_eq!(
+            r.selection_names(),
+            ["buffer-level", "first-available", "random", "round-robin"]
+        );
         assert_eq!(r.traffic_names(), ["uniform"]);
         assert!(r.build_routing("xy", &ctx()).is_some());
         assert!(r.build_routing("does-not-exist", &ctx()).is_none());
@@ -361,6 +380,21 @@ mod tests {
         assert!(r.has_routing("yx"));
         assert!(r.installed().iter().any(|n| n == "yx-router"));
         assert!(r.installed().iter().any(|n| n == "tessera-builtins"));
+    }
+
+    #[test]
+    fn builtin_selections_pass_conformance() {
+        let r = builtin_registry();
+        let mut cands = Candidates::new();
+        cands.push(tessera_core::PortId(1));
+        cands.push(tessera_core::PortId(3));
+        for name in r.selection_names() {
+            let mut policy = r.build_selection(name, &ctx()).unwrap();
+            for _ in 0..4 {
+                conformance::check_selection(policy.as_mut(), &cands)
+                    .unwrap_or_else(|e| panic!("{name} failed conformance: {e}"));
+            }
+        }
     }
 
     #[test]

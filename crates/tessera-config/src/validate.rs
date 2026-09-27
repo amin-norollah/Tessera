@@ -5,7 +5,7 @@
 
 use thiserror::Error;
 
-use crate::schema::{is_adaptive_key, is_dimension_order_key, SimConfigFile};
+use crate::schema::{is_adaptive_key, is_dimension_order_key, AllocatorCfg, SimConfigFile};
 
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum ConfigError {
@@ -17,6 +17,14 @@ pub enum ConfigError {
 
     #[error("router.buffer_depth = {0}: must be >= 2")]
     BufferTooShallow(u16),
+
+    #[error("router.alloc_iters = 0: must be >= 1 (one request/grant/accept pass)")]
+    AllocItersZero,
+
+    #[error(
+        "router.alloc_iters = {0}: multi-iteration matching only applies to an i_slip          allocator, but neither router.allocator_va nor router.allocator_sa is i_slip;          set alloc_iters = 1 or select i_slip"
+    )]
+    AllocItersWithoutISlip(u8),
 
     #[error("topology dimensions {width}x{height}: must be >= 2x2 (a single-router network has no links to route over)")]
     TopologyTooSmall { width: u16, height: u16 },
@@ -92,6 +100,15 @@ pub fn validate(cfg: &SimConfigFile) -> Result<(), Vec<ConfigError>> {
 
     if cfg.router.buffer_depth < 2 {
         errors.push(ConfigError::BufferTooShallow(cfg.router.buffer_depth));
+    }
+
+    if cfg.router.alloc_iters == 0 {
+        errors.push(ConfigError::AllocItersZero);
+    } else if cfg.router.alloc_iters > 1
+        && cfg.router.allocator_va != AllocatorCfg::ISlip
+        && cfg.router.allocator_sa != AllocatorCfg::ISlip
+    {
+        errors.push(ConfigError::AllocItersWithoutISlip(cfg.router.alloc_iters));
     }
 
     let (width, height) = cfg.topology.dimensions();
@@ -395,21 +412,37 @@ mod tests {
     }
 
     #[test]
-    fn allocator_and_selection_defaults_are_unused_placeholders_for_now() {
-        // Smoke-check the schema's remaining fields construct and serialize;
-        // they gain validation rules once their engine hooks land (M2/M4).
-        let cfg = RouterCfg {
+    fn multi_iteration_islip_is_accepted() {
+        let mut cfg = good();
+        cfg.router = RouterCfg {
             allocator_va: AllocatorCfg::ISlip,
             allocator_sa: AllocatorCfg::Matrix,
             alloc_iters: 2,
             ..good().router
         };
-        let mut full = good();
-        full.router = cfg;
-        full.traffic = TrafficCfg {
-            kind: full.traffic.kind,
+        cfg.traffic = TrafficCfg {
+            kind: cfg.traffic.kind,
             packet_size: PacketSizeCfg::Fixed { size: 4 },
         };
-        assert_eq!(validate(&full), Ok(()));
+        assert_eq!(validate(&cfg), Ok(()));
+    }
+
+    #[test]
+    fn zero_alloc_iters_is_rejected() {
+        let mut cfg = good();
+        cfg.router.alloc_iters = 0;
+        assert!(validate(&cfg)
+            .unwrap_err()
+            .contains(&ConfigError::AllocItersZero));
+    }
+
+    #[test]
+    fn multi_iteration_without_islip_is_rejected() {
+        let mut cfg = good();
+        cfg.router.allocator_va = AllocatorCfg::Matrix;
+        cfg.router.alloc_iters = 3;
+        assert!(validate(&cfg)
+            .unwrap_err()
+            .contains(&ConfigError::AllocItersWithoutISlip(3)));
     }
 }

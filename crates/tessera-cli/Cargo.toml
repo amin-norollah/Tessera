@@ -25,6 +25,8 @@ tessera-traffic.workspace = true
 tessera-stats.workspace = true
 tessera-config.workspace = true
 tessera-plugin.workspace = true
+thiserror.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 tessera-params.workspace = true
@@ -53,6 +55,10 @@ path = "tests/analytical.test.rs"
 [[test]]
 name = "bimodal_traffic"
 path = "tests/bimodal_traffic.test.rs"
+
+[[test]]
+name = "config_build"
+path = "tests/config_build.test.rs"
 
 [[test]]
 name = "credit_conservation"

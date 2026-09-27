@@ -2209,6 +2209,8 @@ dependencies = [
  "tessera-stats",
  "tessera-thermal",
  "tessera-traffic",
+ "thiserror 1.0.69",
+ "toml",
 ]
 
 [[package]]
@@ -2277,11 +2279,13 @@ dependencies = [
  "arrow 53.4.1",
  "bincode",
  "duckdb",
+ "flate2",
  "parquet",
  "rusqlite",
  "tessera-core",
  "tessera-stats",
  "thiserror 1.0.69",
+ "toml",
 ]
 
 [[package]]

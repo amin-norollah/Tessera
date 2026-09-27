@@ -1,11 +1,12 @@
-//! `tessera`: headless Phase 0 runner. Sweeps offered load over a 2D mesh and
-//! prints (and optionally writes) a latency-throughput curve.
+//! `tessera`: headless runner. Sweeps offered load over a 2D mesh and prints
+//! (and optionally writes) a latency-throughput curve, or runs one point from
+//! a full TOML config (`--config`, every component choice honored).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tessera_cli::{run_point, RunParams};
+use tessera_cli::{build_from_path, run_configured, run_point, RunParams};
 use tessera_core::SimConfig;
 use tessera_plugin::builtin_registry;
 use tessera_stats::{write_csv, RunPoint};
@@ -15,6 +16,15 @@ tessera: Phase 0 NoC latency-throughput runner
 
 USAGE:
     tessera [OPTIONS]
+    tessera --config PATH [--out PATH] [--drain-cap N]
+
+CONFIG FILE:
+    --config PATH        run one point from a TOML config (tessera-config
+                         SimConfigFile schema: topology, router, allocators,
+                         selection, traffic incl. table/netrace/synfull).
+                         Relative traffic paths resolve against the config's
+                         directory. Excludes the flags below except OUTPUT
+                         and --drain-cap.
 
 TOPOLOGY / ROUTER:
     --width N            mesh width            [default: 8]
@@ -47,6 +57,9 @@ fn main() -> ExitCode {
     if args.iter().any(|a| a == "-h" || a == "--help") {
         print!("{USAGE}");
         return ExitCode::SUCCESS;
+    }
+    if args.iter().any(|a| a == "--config") {
+        return run_config_file(&args);
     }
     match parse(&args) {
         Ok(opts) => {
@@ -97,6 +110,67 @@ fn run(opts: Opts) {
     }
 }
 
+/// Keys accepted alongside `--config`: everything else is the config's job.
+const CONFIG_COMPATIBLE: [&str; 3] = ["config", "out", "drain-cap"];
+
+fn run_config_file(args: &[String]) -> ExitCode {
+    let result = parse_pairs(args).and_then(|map| {
+        if let Some(bad) = map
+            .keys()
+            .find(|k| !CONFIG_COMPATIBLE.contains(&k.as_str()))
+        {
+            return Err(format!(
+                "--{bad} cannot be combined with --config; set it in the config file"
+            ));
+        }
+        let drain_cap: u64 = get(&map, "drain-cap", 200_000)?;
+        Ok((map, drain_cap))
+    });
+    let (map, drain_cap) = match result {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!(
+                "error: {e}
+
+{USAGE}"
+            );
+            return ExitCode::FAILURE;
+        }
+    };
+    let path = PathBuf::from(&map["config"]);
+    let run = match build_from_path(&path) {
+        Ok(run) => run,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    println!("config {}", path.display());
+    if let Some(stamp) = &run.provenance {
+        print!("{stamp}");
+    }
+    println!(
+        "{:>12}  {:>14}  {:>16}  {:>14}",
+        "offered_pkt", "offered_flit", "accepted_flit", "avg_latency"
+    );
+    let point = run_configured(run, drain_cap);
+    print_row(&point);
+
+    if let Some(out) = map.get("out").map(PathBuf::from) {
+        if let Err(e) = write_csv(&out, std::slice::from_ref(&point)) {
+            eprintln!("failed to write {}: {e}", out.display());
+            return ExitCode::FAILURE;
+        }
+        println!(
+            "
+wrote 1 point to {}",
+            out.display()
+        );
+    }
+    ExitCode::SUCCESS
+}
+
 fn print_row(p: &RunPoint) {
     println!(
         "{:>12.4}  {:>14.4}  {:>16.4}  {:>14.2}",
@@ -104,7 +178,7 @@ fn print_row(p: &RunPoint) {
     );
 }
 
-fn parse(args: &[String]) -> Result<Opts, String> {
+fn parse_pairs(args: &[String]) -> Result<HashMap<String, String>, String> {
     let mut map: HashMap<String, String> = HashMap::new();
     let mut i = 0;
     while i < args.len() {
@@ -118,6 +192,11 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         map.insert(name.to_string(), val.clone());
         i += 2;
     }
+    Ok(map)
+}
+
+fn parse(args: &[String]) -> Result<Opts, String> {
+    let map = parse_pairs(args)?;
 
     let cfg = SimConfig {
         buffer_depth: get(&map, "buffer", 4)?,

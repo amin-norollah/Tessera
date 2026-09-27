@@ -177,6 +177,24 @@ pub trait SelectionPolicy: Send + Sync {
         congestion: &dyn CongestionView,
         rng: &mut NodeRng,
     ) -> PortId;
+
+    /// Serializes this policy's state for keyframing (P4-F1). Default `None`:
+    /// a stateless policy (`FirstAvailable`, `BufferLevel`, `Random` — the
+    /// latter's state lives entirely in the RNG stream `Simulation` already
+    /// restores) has nothing beyond `cands`/`congestion`/`rng` to capture.
+    /// Stateful policies (e.g. `RoundRobinSelection`'s rotation pointer)
+    /// override this — that state is accumulated across cycles and isn't
+    /// derivable from config or RNG restore alone, the same gap `Allocator`
+    /// closes for VC/switch allocation.
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// Restores state produced by [`Self::snapshot`]. Default no-op, pairing
+    /// with the default `snapshot`.
+    fn restore(&mut self, bytes: &[u8]) {
+        let _ = bytes;
+    }
 }
 
 /// A packet a PE wants to inject.

@@ -1,5 +1,6 @@
 //! Traffic generators behind the [`TrafficGenerator`] contract: Phase 0/1
-//! synthetic patterns (`Uniform`, [`Hotspot`], [`Transpose`], [`Bimodal`])
+//! synthetic patterns (`Uniform`, [`Hotspot`], [`Transpose`], [`Bimodal`],
+//! Noxim table-based [`table::TableTraffic`])
 //! plus Phase 3.5 traffic realism: [`netrace::Netrace`] (dependency-driven
 //! trace replay) and [`synfull::SynFull`] (Markov-model synthetic traffic),
 //! composable with [`closed_loop::ClosedLoop`] (outstanding-message limits)
@@ -14,11 +15,13 @@ pub mod netrace;
 pub mod reorder;
 pub mod summary;
 pub mod synfull;
+pub mod table;
 
 pub use adversarial::{Hotspot, Transpose};
 pub use bimodal::Bimodal;
 pub use closed_loop::ClosedLoop;
 pub use reorder::ReorderBuffer;
+pub use table::{TableRow, TableTraffic};
 
 /// Uniform random traffic: each cycle a node injects one packet with
 /// probability `rate` (packets/node/cycle), to a uniformly-chosen destination

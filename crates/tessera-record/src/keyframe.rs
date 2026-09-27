@@ -6,11 +6,32 @@
 //! [`crate::SeekEngine`] or [`crate::SimSource`] is codec-specific, so
 //! swapping this later doesn't ripple.
 
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
 use tessera_core::{EngineSnapshot, ENGINE_SNAPSHOT_VERSION};
 
 use crate::RecordError;
+
+/// Keyframe payload compression (P4-F8): a space/write-cost tradeoff a
+/// caller picks per keyframe store; see the `keyframe_tuning` example for
+/// measured numbers across intervals and this choice.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Compression {
+    /// Raw bincode bytes.
+    #[default]
+    None,
+    /// Gzip-compressed bincode bytes (smaller on disk, extra CPU per
+    /// write/read).
+    Gzip,
+}
+
+/// One-byte on-disk tag so [`KeyframeReader`] transparently reads either
+/// compression a store was written with, without being told out of band.
+const TAG_NONE: u8 = 0;
+const TAG_GZIP: u8 = 1;
 
 fn file_name(cycle: u64) -> String {
     format!("{cycle:020}.kf")
@@ -19,20 +40,42 @@ fn file_name(cycle: u64) -> String {
 /// Writes periodic keyframes to a directory, one file per cycle.
 pub struct KeyframeWriter {
     dir: PathBuf,
+    compression: Compression,
 }
 
 impl KeyframeWriter {
-    /// Creates (or reuses) `dir` as the keyframe store.
+    /// Creates (or reuses) `dir` as an uncompressed keyframe store.
     pub fn create(dir: impl Into<PathBuf>) -> Result<Self, RecordError> {
+        Self::with_compression(dir, Compression::None)
+    }
+
+    /// As [`Self::create`], writing every keyframe with `compression`.
+    pub fn with_compression(
+        dir: impl Into<PathBuf>,
+        compression: Compression,
+    ) -> Result<Self, RecordError> {
         let dir = dir.into();
         std::fs::create_dir_all(&dir)?;
-        Ok(Self { dir })
+        Ok(Self { dir, compression })
     }
 
     /// Writes `snap` as the keyframe for its `cycle`.
     pub fn write(&self, snap: &EngineSnapshot) -> Result<(), RecordError> {
         let bytes = bincode::serialize(snap)?;
-        std::fs::write(self.dir.join(file_name(snap.cycle)), bytes)?;
+        let mut out = Vec::with_capacity(bytes.len() + 1);
+        match self.compression {
+            Compression::None => {
+                out.push(TAG_NONE);
+                out.extend_from_slice(&bytes);
+            }
+            Compression::Gzip => {
+                out.push(TAG_GZIP);
+                let mut encoder = GzEncoder::new(out, flate2::Compression::default());
+                encoder.write_all(&bytes)?;
+                out = encoder.finish()?;
+            }
+        }
+        std::fs::write(self.dir.join(file_name(snap.cycle)), out)?;
         Ok(())
     }
 }
@@ -70,9 +113,29 @@ impl KeyframeReader {
         self.cycles.iter().rev().find(|&&c| c <= n).copied()
     }
 
-    /// Reads the keyframe recorded at exactly `cycle` (see [`Self::nearest_le`]).
+    /// Reads the keyframe recorded at exactly `cycle` (see [`Self::nearest_le`]),
+    /// transparently decompressing regardless of which [`Compression`] it was
+    /// written with.
     pub fn read(&self, cycle: u64) -> Result<EngineSnapshot, RecordError> {
-        let bytes = std::fs::read(self.dir.join(file_name(cycle)))?;
+        let raw = std::fs::read(self.dir.join(file_name(cycle)))?;
+        let (&tag, payload) = raw.split_first().ok_or_else(|| {
+            RecordError::Codec(bincode::ErrorKind::Custom("empty keyframe file".to_string()).into())
+        })?;
+        let bytes = match tag {
+            TAG_NONE => payload.to_vec(),
+            TAG_GZIP => {
+                let mut decoder = GzDecoder::new(payload);
+                let mut decompressed = Vec::new();
+                decoder.read_to_end(&mut decompressed)?;
+                decompressed
+            }
+            other => {
+                return Err(RecordError::Codec(
+                    bincode::ErrorKind::Custom(format!("unknown keyframe compression tag {other}"))
+                        .into(),
+                ))
+            }
+        };
         let snap: EngineSnapshot = bincode::deserialize(&bytes)?;
         if snap.schema_version != ENGINE_SNAPSHOT_VERSION {
             return Err(RecordError::SchemaVersionMismatch {
@@ -115,6 +178,7 @@ mod tests {
             va_alloc_state: None,
             sa1_alloc_state: None,
             sa2_alloc_state: None,
+            selection_state: None,
         }
     }
 
@@ -157,5 +221,36 @@ mod tests {
         assert_eq!(reader.nearest_le(50), None);
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn gzip_compression_round_trips_and_shrinks_a_compressible_payload() {
+        let mut snap = empty_snapshot(42);
+        snap.reserve_port = vec![7; 10_000];
+
+        let dir = scratch_dir("gzip");
+        let writer = KeyframeWriter::with_compression(&dir, Compression::Gzip).unwrap();
+        writer.write(&snap).unwrap();
+
+        let reader = KeyframeReader::open(&dir).unwrap();
+        let round_tripped = reader.read(42).unwrap();
+        assert_eq!(round_tripped.cycle, 42);
+        assert_eq!(round_tripped.reserve_port, snap.reserve_port);
+        let compressed_size = std::fs::metadata(dir.join(file_name(42))).unwrap().len();
+
+        let dir_plain = scratch_dir("gzip_baseline");
+        let writer_plain = KeyframeWriter::create(&dir_plain).unwrap();
+        writer_plain.write(&snap).unwrap();
+        let plain_size = std::fs::metadata(dir_plain.join(file_name(42)))
+            .unwrap()
+            .len();
+
+        assert!(
+            compressed_size < plain_size,
+            "gzip ({compressed_size}B) should shrink a highly repetitive payload vs raw ({plain_size}B)"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+        std::fs::remove_dir_all(&dir_plain).unwrap();
     }
 }

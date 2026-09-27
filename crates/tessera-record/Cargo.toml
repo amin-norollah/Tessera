@@ -10,6 +10,9 @@ description = "Tessera keyframe/replay recorder: deterministic SeekTo(cycle) via
 tessera-core = { workspace = true, features = ["snapshot"] }
 bincode.workspace = true
 thiserror.workspace = true
+# Pure-Rust (default `miniz_oxide` backend, no C toolchain) gzip for optional
+# keyframe compression (P4-F8).
+flate2.workspace = true
 tessera-stats = { workspace = true, optional = true }
 arrow = { workspace = true, optional = true }
 parquet = { workspace = true, optional = true }
@@ -26,3 +29,6 @@ catalog = ["dep:rusqlite"]
 # Off by default: `duckdb`'s `bundled` feature compiles a large C++
 # amalgamation (docs/OUTSTANDING_PRD.md OUT-30's flagged Windows/MSVC risk).
 query = ["dep:duckdb"]
+
+[dev-dependencies]
+toml.workspace = true

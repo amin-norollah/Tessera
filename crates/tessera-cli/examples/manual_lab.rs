@@ -15,6 +15,9 @@ use tessera_routing::{
 };
 use tessera_traffic::{Bimodal, Uniform};
 
+// One param per varied scenario knob plus the label; grouping them into a
+// struct would only rename the same list at each call site (OUT-23).
+#[allow(clippy::too_many_arguments)]
 fn sweep_point(
     label: &str,
     topo: Box<dyn tessera_core::Topology>,

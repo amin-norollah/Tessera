@@ -218,9 +218,7 @@ impl ThermalModel for RcGrid {
     }
 
     fn reset(&mut self) {
-        for t in &mut self.temp {
-            *t = self.t_amb;
-        }
+        self.temp.fill(self.t_amb);
         self.refresh_out();
     }
 }

@@ -17,6 +17,8 @@
 //! the `replay` helpers) is generic over it.
 
 #[cfg(feature = "catalog")]
+pub mod bundle;
+#[cfg(feature = "catalog")]
 pub mod catalog;
 #[cfg(feature = "query")]
 pub mod compare;
@@ -32,6 +34,8 @@ pub mod replay;
 pub mod seek;
 
 #[cfg(feature = "catalog")]
+pub use bundle::export_bundle;
+#[cfg(feature = "catalog")]
 pub use catalog::{Catalog, NewRun, RunRecord};
 #[cfg(feature = "query")]
 pub use compare::{
@@ -40,7 +44,7 @@ pub use compare::{
 pub use error::RecordError;
 #[cfg(feature = "events")]
 pub use event::EventParquetSink;
-pub use keyframe::{KeyframeReader, KeyframeWriter};
+pub use keyframe::{Compression, KeyframeReader, KeyframeWriter};
 #[cfg(feature = "query")]
 pub use query::{Query, QueryResult};
 #[cfg(feature = "events")]

@@ -75,6 +75,16 @@ impl SelectionPolicy for RoundRobinSelection {
         self.next = self.next.wrapping_add(1);
         cands.get(i)
     }
+
+    fn snapshot(&self) -> Option<Vec<u8>> {
+        Some(vec![self.next])
+    }
+
+    fn restore(&mut self, bytes: &[u8]) {
+        if let [next] = *bytes {
+            self.next = next;
+        }
+    }
 }
 
 /// Picks uniformly at random among the admissible set, drawing from the
