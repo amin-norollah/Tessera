@@ -4,11 +4,14 @@
 //! resolved by string key through the plugin [`Registry`](tessera_plugin::Registry).
 //! [`build`] assembles a run from a full [`tessera_config::SimConfigFile`]
 //! instead (every component choice, including file-backed traffic).
+//! [`observe`] samples a run for power/thermal metrics and diagnostics.
 
 pub mod build;
+pub mod observe;
 
 pub use build::{
-    build_from_config, build_from_path, load_config, run_configured, BuildError, ConfiguredRun,
+    build_from_config, build_from_path, load_config, run_configured, run_configured_with,
+    BuildError, ConfiguredRun,
 };
 
 use tessera_core::{Allocator, RoutingAlgorithm, SimConfig, Simulation};

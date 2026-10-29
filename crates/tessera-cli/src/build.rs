@@ -114,6 +114,9 @@ fn bullet_list(errors: &[ConfigError]) -> String {
 pub struct ConfiguredRun {
     pub sim: Simulation,
     pub nodes: u32,
+    /// Grid dimensions (routers are numbered row-major).
+    pub width: u16,
+    pub height: u16,
     pub warmup: u64,
     pub measure: u64,
     /// The configured offered load (packets/node/cycle) for rate-driven
@@ -193,6 +196,8 @@ pub fn build_from_config(
     Ok(ConfiguredRun {
         sim,
         nodes,
+        width,
+        height,
         warmup: cfg.warmup,
         measure: cfg.measure,
         offered_rate,
@@ -211,7 +216,19 @@ pub fn build_from_path(path: &Path) -> Result<ConfiguredRun, BuildError> {
 
 /// Drive a configured run through warm-up, measurement, and drain (the same
 /// harness as [`crate::run_point`]).
-pub fn run_configured(mut run: ConfiguredRun, drain_cap: u64) -> RunPoint {
+pub fn run_configured(run: ConfiguredRun, drain_cap: u64) -> RunPoint {
+    run_configured_with(run, drain_cap, |_| {})
+}
+
+/// [`run_configured`], calling `on_tick` with the simulation after every tick
+/// (warm-up, measurement and drain alike): the hook an
+/// [`Observer`](crate::observe::Observer) samples through. It only reads, so
+/// the run's result is unchanged.
+pub fn run_configured_with(
+    mut run: ConfiguredRun,
+    drain_cap: u64,
+    mut on_tick: impl FnMut(&Simulation),
+) -> RunPoint {
     let sim = &mut run.sim;
     sim.measure_start = run.warmup;
     sim.measure_end = run.warmup + run.measure;
@@ -219,11 +236,13 @@ pub fn run_configured(mut run: ConfiguredRun, drain_cap: u64) -> RunPoint {
     sim.set_injecting(true);
     for _ in 0..(run.warmup + run.measure) {
         sim.tick();
+        on_tick(sim);
     }
     sim.set_injecting(false);
     let mut guard = 0;
     while sim.in_flight() > 0 && guard < drain_cap {
         sim.tick();
+        on_tick(sim);
         guard += 1;
     }
 

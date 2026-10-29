@@ -4,6 +4,24 @@ Notable changes to Tessera, loosely following [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+- Run observation in the CLI (OUT-11, P3-F14/F15/F16): `tessera_cli::observe::Observer`
+  samples a live run every N cycles over observable state only. Each sample feeds
+  the interval's per-router activity (new `ActivityCounts::since`) to a
+  `TeiLoop<RcGrid, NoThrottle>`, so power is dynamic plus temperature-dependent
+  leakage. It streams one `MetricRow` per router plus a network row (fixed-order
+  reductions) and runs the deadlock, livelock and congestion detectors, plus the
+  invariant checker in verify mode. `run_configured_with` adds a read-only per-tick
+  hook to the configured harness. The CLI gains `--metrics PATH` (CSV, or
+  `.parquet` behind tessera-cli's new off-by-default `parquet` feature),
+  `--params`, `--interval`, `--diag-window` and `--verify` (non-zero exit on a
+  violation, deadlock or livelock), all used with `--config`. Per-router `latency`
+  is `NaN` because the kernel measures latency network-wide only. Starvation is not
+  run because the kernel exposes no per-flow grant observables. Tested in
+  `crates/tessera-cli/tests/observe.test.rs`: rows reconcile exactly with the
+  kernel's ejected-flit and hop totals, reported energy covers the dynamic energy
+  of the same activity plus leakage, output is deterministic, observing leaves the
+  run's result unchanged, and the binary writes the CSV and passes `--verify`.
+
 - Config → engine wiring (OUT-13, OUT-26): `tessera_cli::build`
   (`build_from_config`/`build_from_path`/`run_configured`) turns a validated
   `SimConfigFile` into a live `Simulation` that honors every component choice:

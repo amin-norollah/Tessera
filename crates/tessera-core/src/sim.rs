@@ -159,6 +159,21 @@ impl ActivityCounts {
         self.link_flits += o.link_flits;
         self.clock += o.clock;
     }
+
+    /// The counts accumulated since `earlier`, a previous reading of the same
+    /// router's cumulative counters: one interval's activity, for interval
+    /// power accounting (P3-F14).
+    pub fn since(&self, earlier: &ActivityCounts) -> ActivityCounts {
+        ActivityCounts {
+            buf_write: self.buf_write - earlier.buf_write,
+            buf_read: self.buf_read - earlier.buf_read,
+            xbar: self.xbar - earlier.xbar,
+            va_arb: self.va_arb - earlier.va_arb,
+            sa_arb: self.sa_arb - earlier.sa_arb,
+            link_flits: self.link_flits - earlier.link_flits,
+            clock: self.clock - earlier.clock,
+        }
+    }
 }
 
 impl Metrics {

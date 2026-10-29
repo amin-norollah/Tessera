@@ -3,10 +3,13 @@
 //! a full TOML config (`--config`, every component choice honored).
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use tessera_cli::{build_from_path, run_configured, run_point, RunParams};
+use tessera_cli::observe::{load_params, MetricsOut, ObserveCfg, Observer};
+use tessera_cli::{
+    build_from_path, run_configured, run_configured_with, run_point, ConfiguredRun, RunParams,
+};
 use tessera_core::SimConfig;
 use tessera_plugin::builtin_registry;
 use tessera_stats::{write_csv, RunPoint};
@@ -25,6 +28,19 @@ CONFIG FILE:
                          Relative traffic paths resolve against the config's
                          directory. Excludes the flags below except OUTPUT
                          and --drain-cap.
+
+OBSERVATION (with --config):
+    --metrics PATH       write a per-router + network power/thermal/traffic
+                         time-series; .parquet needs the `parquet` feature,
+                         any other extension writes CSV
+    --params PATH        power/thermal parameter profile [default: bundled
+                         params/ptm_22nm.toml]
+    --interval N         sampling interval (cycles)    [default: 1000]
+    --diag-window N      deadlock/livelock/congestion window (cycles)
+                                                       [default: 10000]
+    --verify             also check invariants (flit conservation, monotonic
+                         counters); exit non-zero on a violation, deadlock or
+                         livelock
 
 TOPOLOGY / ROUTER:
     --width N            mesh width            [default: 8]
@@ -111,10 +127,21 @@ fn run(opts: Opts) {
 }
 
 /// Keys accepted alongside `--config`: everything else is the config's job.
-const CONFIG_COMPATIBLE: [&str; 3] = ["config", "out", "drain-cap"];
+const CONFIG_COMPATIBLE: [&str; 7] = [
+    "config",
+    "out",
+    "drain-cap",
+    "metrics",
+    "params",
+    "interval",
+    "diag-window",
+];
 
 fn run_config_file(args: &[String]) -> ExitCode {
-    let result = parse_pairs(args).and_then(|map| {
+    // `--verify` is the one valueless flag.
+    let verify = args.iter().any(|a| a == "--verify");
+    let args: Vec<String> = args.iter().filter(|a| *a != "--verify").cloned().collect();
+    let result = parse_pairs(&args).and_then(|map| {
         if let Some(bad) = map
             .keys()
             .find(|k| !CONFIG_COMPATIBLE.contains(&k.as_str()))
@@ -154,8 +181,20 @@ fn run_config_file(args: &[String]) -> ExitCode {
         "{:>12}  {:>14}  {:>16}  {:>14}",
         "offered_pkt", "offered_flit", "accepted_flit", "avg_latency"
     );
-    let point = run_configured(run, drain_cap);
-    print_row(&point);
+    let observing = verify || map.contains_key("metrics");
+    let (point, healthy) = if observing {
+        match observe_run(run, drain_cap, &map, verify) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("error: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+    } else {
+        let point = run_configured(run, drain_cap);
+        print_row(&point);
+        (point, true)
+    };
 
     if let Some(out) = map.get("out").map(PathBuf::from) {
         if let Err(e) = write_csv(&out, std::slice::from_ref(&point)) {
@@ -168,7 +207,60 @@ wrote 1 point to {}",
             out.display()
         );
     }
-    ExitCode::SUCCESS
+    if healthy {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+/// Run with an [`Observer`] attached and print its findings. Returns the
+/// point and whether the run passed (always true without `--verify`).
+fn observe_run(
+    run: ConfiguredRun,
+    drain_cap: u64,
+    map: &HashMap<String, String>,
+    verify: bool,
+) -> Result<(RunPoint, bool), String> {
+    let cfg = ObserveCfg {
+        interval: get(map, "interval", 1000)?,
+        diag_window: get(map, "diag-window", 10_000)?,
+        verify,
+        params: load_params(map.get("params").map(Path::new)).map_err(|e| e.to_string())?,
+    };
+    let metrics_path = map.get("metrics").map(PathBuf::from);
+    let out = match &metrics_path {
+        Some(path) => MetricsOut::create(path).map_err(|e| e.to_string())?,
+        None => MetricsOut::Discard,
+    };
+
+    let mut observer = Observer::new(cfg, run.width, run.height, out);
+    let point = run_configured_with(run, drain_cap, |sim| observer.on_tick(sim));
+    print_row(&point);
+    let (out, report) = observer.finish();
+    out.into_result().map_err(|e| e.to_string())?;
+
+    println!(
+        "\nobserved {} samples: mean network power {:.4e} W, peak temperature {:.3} C",
+        report.samples, report.mean_power_w, report.peak_temp_c
+    );
+    if let Some(path) = &metrics_path {
+        println!("wrote {} metric rows to {}", report.rows, path.display());
+    }
+    for e in &report.events {
+        println!(
+            "diag: {:?} at {:?}, cycle {}: {}",
+            e.kind, e.location, e.cycle, e.detail
+        );
+    }
+    for v in &report.violations {
+        println!("verify: {v:?}");
+    }
+    let healthy = !(verify && report.is_failure());
+    if verify {
+        println!("verify: {}", if healthy { "PASS" } else { "FAIL" });
+    }
+    Ok((point, healthy))
 }
 
 fn print_row(p: &RunPoint) {
