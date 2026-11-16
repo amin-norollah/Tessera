@@ -4,6 +4,19 @@ Thanks for taking a look. Tessera is young, so the most useful contributions
 right now are bug reports, test cases from your own NoC setups, and the items on
 the [roadmap](guide/roadmap.md).
 
+## Finding something to work on
+
+- Issues labeled
+  [`good first issue`](https://github.com/amin-norollah/Tessera/labels/good%20first%20issue)
+  are small and self-contained.
+- Issues labeled
+  [`help wanted`](https://github.com/amin-norollah/Tessera/labels/help%20wanted)
+  are bigger pieces where I'd especially welcome help.
+- Questions, half-formed ideas and "would this be useful?" go in
+  [Discussions](https://github.com/amin-norollah/Tessera/discussions).
+
+If you pick up an issue, leave a comment so others know it's taken.
+
 ## Before you start
 
 - For anything bigger than a small fix, open an issue first so we can agree on
@@ -61,6 +74,11 @@ Use the body to explain *why* if the diff doesn't make it obvious.
 Open an issue. Tell us what you expected, what happened instead, and how to
 reproduce it. A config file and seed that trigger the problem help a lot; since
 runs are deterministic, that's usually enough for us to see the same thing.
+
+## Code of conduct
+
+Please be kind. The [code of conduct](CODE_OF_CONDUCT.md) is short and worth a
+read.
 
 ## License
 

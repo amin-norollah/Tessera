@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and discussion
+    url: https://github.com/amin-norollah/Tessera/discussions
+    about: Not sure if it's a bug, or want to talk through an idea first? Start a discussion.

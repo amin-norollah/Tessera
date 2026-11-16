@@ -1,8 +1,13 @@
 # Tessera
 
+[![CI](https://github.com/amin-norollah/Tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/amin-norollah/Tessera/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 A cycle-accurate network-on-chip (NoC) simulator written in Rust.
 
-Tessera is a clean-room successor to PAT-Noxim. It keeps the parts that made
+Tessera is a clean-room successor to
+[PAT-Noxim](https://github.com/amin-norollah/PAT-Noxim). It keeps the parts that made
 PAT-Noxim useful for research (a detailed router model plus power, area and
 thermal estimates) and drops the SystemC baggage: global state, sizes fixed at
 compile time, and no way to snapshot or replay a run. Every run is deterministic
@@ -156,10 +161,27 @@ web/                future browser UI (scaffold only)
 - [How it's put together](guide/architecture.md)
 - [Roadmap](guide/roadmap.md)
 
-## Contributing
+## Help wanted
 
-Issues and pull requests are welcome. Please read
-[`CONTRIBUTING.md`](CONTRIBUTING.md) first.
+Tessera is a lot of simulator for one person, and I'd love help with it. You
+don't need to be a Rust expert. If you know NoCs, router design, power or
+thermal modeling, or web visualization, there's a piece that fits you. Some
+places to start:
+
+- **Router features:** escape-channel adaptive routing (Duato), speculative
+  switch allocation, NoP selection, a 3D mesh.
+- **Parallel execution:** running the kernel on several threads without losing
+  determinism.
+- **Validation:** linking DSENT and HotSpot and checking Tessera's numbers
+  against them, or comparing results with BookSim and Noxim.
+- **The web UI:** a browser front-end for watching and comparing recorded runs.
+
+Look for issues labeled
+[`good first issue`](https://github.com/amin-norollah/Tessera/labels/good%20first%20issue)
+or [`help wanted`](https://github.com/amin-norollah/Tessera/labels/help%20wanted),
+or start a [discussion](https://github.com/amin-norollah/Tessera/discussions) if
+you have an idea of your own. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how
+to send a change.
 
 ## License
 

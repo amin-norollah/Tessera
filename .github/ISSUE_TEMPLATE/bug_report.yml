@@ -1,0 +1,37 @@
+name: Bug report
+description: Something doesn't work the way it should.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Runs are deterministic, so a config file and a
+        seed are usually all I need to see the same thing you saw.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can I reproduce it?
+      description: The command you ran, and the config file if you used one.
+      placeholder: |
+        cargo run --release -p tessera-cli -- --config my_run.toml
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or error message
+      render: text
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version (`rustc --version`), and the Tessera commit.
+      placeholder: Ubuntu 24.04, rustc 1.98, commit abc1234

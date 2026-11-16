@@ -17,6 +17,9 @@ AGENTS.md
 !/README.md
 !/CONTRIBUTING.md
 !/CHANGELOG.md
+!/CODE_OF_CONDUCT.md
+!/SECURITY.md
+!/.github/**/*.md
 !/guide/*.md
 !/web/README.md
 
