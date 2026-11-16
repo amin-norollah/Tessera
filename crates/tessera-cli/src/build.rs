@@ -72,7 +72,7 @@ pub enum BuildError {
 
     #[error(
         "router.vc_classes: escape-VC (Duato) partitioning is not implemented in the engine \
-         yet (docs/OUTSTANDING_PRD.md OUT-14); remove vc_classes"
+         yet; remove vc_classes"
     )]
     VcClassesUnsupported,
 
