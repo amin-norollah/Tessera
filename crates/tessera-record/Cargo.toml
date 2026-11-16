@@ -3,8 +3,9 @@ name = "tessera-record"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera keyframe/replay recorder: deterministic SeekTo(cycle) via keyframe + re-simulation, the Phase 4 replay-equivalence oracle."
+description = "Run recording for Tessera: keyframes, deterministic seek and replay, Parquet event log, SQLite run catalog, and DuckDB queries."
 
 [dependencies]
 tessera-core = { workspace = true, features = ["snapshot"] }

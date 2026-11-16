@@ -179,11 +179,11 @@ pub trait SelectionPolicy: Send + Sync {
     ) -> PortId;
 
     /// Serializes this policy's state for keyframing (P4-F1). Default `None`:
-    /// a stateless policy (`FirstAvailable`, `BufferLevel`, `Random` — the
+    /// a stateless policy (`FirstAvailable`, `BufferLevel`, `Random`; the
     /// latter's state lives entirely in the RNG stream `Simulation` already
     /// restores) has nothing beyond `cands`/`congestion`/`rng` to capture.
     /// Stateful policies (e.g. `RoundRobinSelection`'s rotation pointer)
-    /// override this — that state is accumulated across cycles and isn't
+    /// override this, since that state is accumulated across cycles and isn't
     /// derivable from config or RNG restore alone, the same gap `Allocator`
     /// closes for VC/switch allocation.
     fn snapshot(&self) -> Option<Vec<u8>> {

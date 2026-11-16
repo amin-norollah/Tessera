@@ -3,8 +3,9 @@ name = "tessera-thermal"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera native compact RC thermal network (P3-F4): HotSpot-style per-tile C*dT/dt = P - G*(T-T_amb), driven by the cited parameter DB."
+description = "Compact HotSpot-style RC thermal model for Tessera, with a temperature-leakage feedback loop."
 
 [dependencies]
 tessera-core.workspace = true

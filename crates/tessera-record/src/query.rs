@@ -1,7 +1,7 @@
 //! DuckDB query layer over the event Parquet store (P4-F5, gate G4.3): opens
 //! an in-process DuckDB connection with the store registered as a view named
 //! `events`, so a caller runs plain SQL instead of hand-rolled aggregation
-//! code. The trace store itself stays open Parquet (P4-N4) — DuckDB reads it
+//! code. The trace store itself stays open Parquet (P4-N4); DuckDB reads it
 //! directly (`read_parquet`, no import step); this is a convenience layer
 //! over it, not a proprietary format a caller is locked into.
 

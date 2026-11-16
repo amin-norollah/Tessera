@@ -1,7 +1,7 @@
 //! Ties keyframe cadence and event streaming together into one per-cycle
 //! call (P4-F1/F4): [`Recorder::observe`] is called once per
 //! [`Simulation::tick`], writing a keyframe on the configured interval and
-//! draining that cycle's [`Event`]s into the streaming Arrow/Parquet sink —
+//! draining that cycle's [`Event`]s into the streaming Arrow/Parquet sink,
 //! both bounded-memory (P4-N2): only one event batch is ever held in RAM,
 //! and keyframes are written straight to disk as they're taken.
 
@@ -22,7 +22,7 @@ pub struct Recorder {
 
 impl Recorder {
     /// Creates a recorder writing keyframes into `keyframe_dir` every
-    /// `keyframe_interval` cycles (`0` disables keyframing — events still
+    /// `keyframe_interval` cycles (`0` disables keyframing; events still
     /// stream) and the event trace to `event_store_path`, flushing in
     /// batches of `batch_capacity` rows.
     pub fn create(
@@ -41,7 +41,7 @@ impl Recorder {
     }
 
     /// Turns on event recording on `sim` and captures its initial (cycle 0)
-    /// keyframe. Call once, before the first [`Self::observe`] — `observe`'s
+    /// keyframe. Call once, before the first [`Self::observe`]: `observe`'s
     /// modulo check on the post-tick cycle can never land on 0 again, so
     /// this is the one place cycle 0 gets captured (not that it needs to:
     /// `SimSource::fresh` already reconstructs it for free, but keeping it in

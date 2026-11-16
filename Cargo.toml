@@ -6,7 +6,7 @@ members = ["crates/*"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.97"
-repository = "https://github.com/tessera-noc/tessera"
+repository = "https://github.com/amin-norollah/Tessera"
 
 [workspace.dependencies]
 tessera-core = { path = "crates/tessera-core" }

@@ -1,9 +1,9 @@
 //! SQLite project catalog (P4-F7 provenance, gate G4.5): lightweight run
-//! metadata only — a config's text, its seed, and where its keyframe/event
+//! metadata only: a config's text, its seed, and where its keyframe/event
 //! artifacts live on disk. The trace data itself stays in open Parquet files
 //! (P4-N4, portable/queryable outside Tessera); the catalog just indexes
 //! where to find them, and never depends on `tessera-config` (staying below
-//! it in the dependency direction) — a run's config travels as opaque text.
+//! it in the dependency direction), so a run's config travels as opaque text.
 
 use std::path::Path;
 
@@ -17,7 +17,7 @@ pub struct RunRecord {
     pub id: i64,
     pub name: String,
     /// The run's config, verbatim (e.g. the TOML text `tessera-config` would
-    /// parse) — opaque to this crate, kept only for provenance/reproduction.
+    /// parse). Opaque to this crate, kept only for provenance/reproduction.
     pub config_text: String,
     pub seed: u64,
     pub keyframe_dir: Option<String>,

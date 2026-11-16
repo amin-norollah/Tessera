@@ -228,7 +228,7 @@ fn turn_route(ctx: &RouteCtx, model: TurnModel) -> Candidates {
         // preference: these turn models are safe under arbitrary selection
         // only because the deferrable direction is never actually offered as
         // a free choice against the must-go-now one (a selection policy that
-        // ignores priority: buffer-level, round-robin, random: would
+        // ignores priority (buffer-level, round-robin, random) would
         // sometimes pick the deferrable candidate and strand the mandatory
         // turn later, deadlocking). Only a genuine tie (both candidates
         // equally preferred: e.g. west-first doesn't care which of two

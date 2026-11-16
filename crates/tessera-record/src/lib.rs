@@ -10,8 +10,8 @@
 //! for analytics and for the oracle to diff bit-for-bit.
 //!
 //! This crate sits below `tessera-config`/`tessera-plugin`/`tessera-cli` in
-//! the dependency direction (`docs/AGENTS.md`), so it never resolves a config
-//! into trait objects itself: [`SimSource`] is the seam: an owning crate
+//! the dependency direction (`docs/CODING_STANDARDS.md`), so it never resolves
+//! a config into trait objects itself. [`SimSource`] is the seam: an owning crate
 //! (`tessera-cli`) implements it using its own config→registry construction,
 //! and everything here ([`KeyframeWriter`]/[`KeyframeReader`]/[`SeekEngine`]/
 //! the `replay` helpers) is generic over it.

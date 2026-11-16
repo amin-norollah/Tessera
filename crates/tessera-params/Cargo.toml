@@ -3,8 +3,9 @@ name = "tessera-params"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera cited parameter database (P3-F6/F7/F8): versioned, human-editable power/area/thermal coefficients, each carrying a source citation."
+description = "Power, area and thermal parameter database for Tessera, where every value cites its source."
 
 [dependencies]
 serde.workspace = true

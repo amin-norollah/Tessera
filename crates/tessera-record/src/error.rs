@@ -1,5 +1,5 @@
-//! [`RecordError`]: this crate's single error type: errors are values, not
-//! panics (`docs/AGENTS.md`).
+//! [`RecordError`], this crate's single error type. Errors are values, not
+//! panics (`docs/CODING_STANDARDS.md`).
 
 #[derive(Debug, thiserror::Error)]
 pub enum RecordError {

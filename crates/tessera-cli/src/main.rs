@@ -15,7 +15,7 @@ use tessera_plugin::builtin_registry;
 use tessera_stats::{write_csv, RunPoint};
 
 const USAGE: &str = "\
-tessera: Phase 0 NoC latency-throughput runner
+tessera: cycle-accurate NoC simulator
 
 USAGE:
     tessera [OPTIONS]

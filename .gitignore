@@ -7,9 +7,18 @@
 # if a published library crate is split out later, ignore its own lock instead.
 *.pdb
 
-#docs
-# /docs/**/*.md
+# --- Private docs and notes (kept local, never published) ---
+# All Markdown is private by default. Only the public files below are tracked.
+/docs/
+CLAUDE.md
+AGENTS.md
+/.claude/
 *.md
+!/README.md
+!/CONTRIBUTING.md
+!/CHANGELOG.md
+!/guide/*.md
+!/web/README.md
 
 # --- Node tooling (Prettier / Husky / lint-staged) ---
 /node_modules/
@@ -28,16 +37,17 @@ web/coverage/
 *.tsbuildinfo
 
 # --- FFI / native build artifacts (DSENT, ORION, HotSpot, McPAT) ---
-/crates/tessera-ffi/**/build/
-/crates/tessera-ffi/**/*.o
-/crates/tessera-ffi/**/*.a
-/crates/tessera-ffi/**/*.so
-/crates/tessera-ffi/**/*.dylib
-/crates/tessera-ffi/**/*.dll
+/crates/*-sys/build/
+/crates/*-sys/**/*.o
+/crates/*-sys/**/*.a
+/crates/*-sys/**/*.so
+/crates/*-sys/**/*.dylib
+/crates/*-sys/**/*.dll
 
 # --- Simulation output (traces, snapshots, exported figures) ---
 /runs/
 /traces/
+/results/*.*
 *.parquet
 *.arrow
 *.duckdb
@@ -61,8 +71,5 @@ desktop.ini
 # --- Logs ---
 *.log
 
-# --- Test files ---
+# --- Scratch test files ---
 /test*.*
-
-# --- Results files ---
-/results/*.*

@@ -3,8 +3,9 @@ name = "tessera-model"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera NoC components: concrete topologies (Phase 0: 2D mesh)."
+description = "Network topologies for Tessera: 2D mesh and torus."
 
 [dependencies]
 tessera-core.workspace = true

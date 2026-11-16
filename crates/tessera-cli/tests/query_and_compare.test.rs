@@ -79,7 +79,7 @@ fn duckdb_delivered_count_matches_an_independently_collected_trace() {
     record_run(&source, until, &event_path);
 
     // The oracle: an independent from-seed run, collected in-memory
-    // (Milestone A's helper) — not read through DuckDB at all.
+    // (Milestone A's helper), not read through DuckDB at all.
     let mut oracle = source.fresh();
     let oracle_events = run_collecting_events(&mut oracle, until);
     let oracle_delivered = oracle_events

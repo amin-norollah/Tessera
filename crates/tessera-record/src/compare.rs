@@ -157,7 +157,7 @@ mod tests {
         );
 
         // Run "b": same shape, but every latency is 10 higher (a slower
-        // network from one changed parameter) — avg 16, delta +10.
+        // network from one changed parameter): avg 16, delta +10.
         let path_b = std::env::temp_dir().join(format!(
             "tessera_record_compare_test_b_{}.parquet",
             std::process::id()

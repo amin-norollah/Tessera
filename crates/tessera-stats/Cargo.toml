@@ -3,8 +3,9 @@ name = "tessera-stats"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera metrics collection and export: latency-throughput CSV plus a bounded-memory streaming time-series with optional Arrow/Parquet output (P3-F14)."
+description = "Metric collection for Tessera: latency-throughput CSV and a bounded-memory time series with optional Parquet export."
 
 [dependencies]
 tessera-core.workspace = true

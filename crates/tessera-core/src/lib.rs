@@ -1,4 +1,4 @@
-//! `tessera-core`: the engine spine: index handles, the flit arena, SoA input
+//! `tessera-core`, the engine spine: index handles, the flit arena, SoA input
 //! buffers, deterministic per-node RNG, the extension trait contracts, and the
 //! double-buffered BSP simulation kernel.
 //!

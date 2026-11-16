@@ -1,0 +1,37 @@
+# An 8x8 mesh under uniform random traffic, with XY routing.
+#
+#   cargo run --release -p tessera-cli -- --config examples/mesh_8x8_uniform.toml
+#
+# Change the topology to `kind = "torus2_d"` for a torus (XY routing only, and
+# set `dateline = true` with `num_vcs = 2`), or point the traffic at a trace.
+
+version = 1
+seed = 1
+warmup = 2000
+measure = 10000
+
+[topology]
+kind = "mesh2_d"
+width = 8
+height = 8
+
+[router]
+num_vcs = 2
+buffer_depth = 4
+router_latency = 1
+link_latency = 1
+credit_delay = 1
+routing = "xy"
+selection = "first-available"
+allocator_va = "round_robin"
+allocator_sa = "round_robin"
+alloc_iters = 1
+dateline = false
+
+[traffic.kind]
+kind = "uniform"
+injection_rate = 0.05
+
+[traffic.packet_size]
+kind = "fixed"
+size = 4

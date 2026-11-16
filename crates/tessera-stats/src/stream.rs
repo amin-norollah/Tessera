@@ -9,7 +9,7 @@
 //! [`StreamingRecorder`]/[`BatchSink`] are generic over the row type so this
 //! bounded-memory pattern serves both [`MetricRow`] (Phase 3 stats) and
 //! `tessera_record::Event` (Phase 4 recording) without a second
-//! implementation: the sink is pluggable — an in-memory [`VecSink`] for tests,
+//! implementation. The sink is pluggable: an in-memory [`VecSink`] for tests,
 //! [`CsvSink`] here for `MetricRow`, and an Arrow/Parquet writer as a drop-in
 //! for the columnar store. Column reductions ([`mean`], [`sum`]) run in a
 //! **fixed left-to-right associative order** so a reduction is identical

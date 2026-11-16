@@ -3,8 +3,9 @@ name = "tessera-traffic"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera traffic generators: synthetic patterns plus Netrace/SynFull trace-realism import (Phase 3.5)."
+description = "Traffic generators for Tessera: synthetic patterns, Noxim tables, trace replay, and Markov-model traffic."
 
 [dependencies]
 tessera-core.workspace = true

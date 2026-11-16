@@ -366,7 +366,7 @@ mod tests {
         p.electrical.voltage.value = p.leakage.tei_v_inv.value + 0.2;
         assert!(m.leakage_power(R0, 100.0, &p) > m.leakage_power(R0, 25.0, &p));
 
-        // Below V_inv: the slope inverts: hotter is *less* leaky (D5).
+        // Below V_inv the slope inverts: hotter is *less* leaky (D5).
         p.electrical.voltage.value = p.leakage.tei_v_inv.value - 0.2;
         assert!(m.leakage_power(R0, 100.0, &p) < m.leakage_power(R0, 25.0, &p));
     }

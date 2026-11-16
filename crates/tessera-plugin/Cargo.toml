@@ -3,8 +3,9 @@ name = "tessera-plugin"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera plugin API: the component registry, conformance harness, and versioning (native plugins in Phase 2; WASM host to follow)."
+description = "Tessera plugin API: component registry, WASM sandbox, conformance tests, and versioning."
 
 [dependencies]
 tessera-core.workspace = true

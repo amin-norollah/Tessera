@@ -3,8 +3,9 @@ name = "tessera-config"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "Tessera runtime config schema, validation, and Noxim traffic/routing-table import."
+description = "Config file schema and validation for Tessera, plus Noxim traffic and routing-table import."
 
 [dependencies]
 tessera-core.workspace = true

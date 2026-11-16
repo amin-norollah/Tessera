@@ -1,5 +1,5 @@
 //! Reproducibility-bundle stub (P4-F9): exports a registered run's
-//! provenance — config, seed, and where its artifacts live — as a small,
+//! provenance (config, seed, and where its artifacts live) as a small,
 //! human-readable manifest. A later Phase 5 tool expands this into the full
 //! paper-ready bundle (code snapshot, copied results, figures); this stub
 //! references the run's keyframe/event-store paths rather than copying those
@@ -12,7 +12,7 @@ use crate::catalog::RunRecord;
 use crate::RecordError;
 
 /// Writes `out_dir/config.toml` (the run's config text, verbatim) and
-/// `out_dir/manifest.toml` (run identity, seed, and artifact paths — TOML
+/// `out_dir/manifest.toml` (run identity, seed, and artifact paths; TOML
 /// so it's both human-readable and machine-parseable) for `run`. Returns the
 /// manifest's path.
 pub fn export_bundle(run: &RunRecord, out_dir: impl AsRef<Path>) -> Result<PathBuf, RecordError> {

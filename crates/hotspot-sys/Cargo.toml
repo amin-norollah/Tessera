@@ -3,8 +3,9 @@ name = "hotspot-sys"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 rust-version.workspace = true
-description = "FFI seam for HotSpot 6.0 RC thermal solver (P3-F9); degraded when the HotSpot library is not linked."
+description = "FFI bindings to the HotSpot 6.0 thermal solver. Reports itself as degraded until the HotSpot library is linked."
 
 [dependencies]
 tessera-thermal.workspace = true
